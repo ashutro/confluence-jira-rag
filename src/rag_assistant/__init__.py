@@ -1,12 +1,18 @@
 """Confluence + Jira RAG assistant package."""
 
 from rag_assistant.config import Settings, get_project_root
+from rag_assistant.connectors.adf_cleaner import clean_adf_to_markdown
 from rag_assistant.connectors.confluence import (
     ConfluenceConnector,
     ConfluenceDocument,
     MockConfluenceConnector,
 )
 from rag_assistant.connectors.html_cleaner import clean_confluence_html
+from rag_assistant.connectors.jira import (
+    JiraConnector,
+    JiraDocument,
+    MockJiraConnector,
+)
 from rag_assistant.sample_data import (
     BenchmarkQuery,
     ConfluencePage,
@@ -24,6 +30,10 @@ __all__ = [
     "ConfluenceDocument",
     "MockConfluenceConnector",
     "clean_confluence_html",
+    "JiraConnector",
+    "JiraDocument",
+    "MockJiraConnector",
+    "clean_adf_to_markdown",
     "ConfluencePage",
     "JiraIssue",
     "BenchmarkQuery",
