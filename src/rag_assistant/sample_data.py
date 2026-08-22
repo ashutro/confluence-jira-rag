@@ -9,8 +9,17 @@ from typing import Any, Dict, List, Optional
 
 
 def get_project_root() -> Path:
-    """Return the absolute path to the confluence-jira-rag root directory."""
-    return Path(__file__).resolve().parent.parent.parent
+    """Find project root directory by searching for pyproject.toml from cwd or file location."""
+    cwd = Path.cwd()
+    if (cwd / "pyproject.toml").exists():
+        return cwd
+    for parent in cwd.parents:
+        if (parent / "pyproject.toml").exists():
+            return parent
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "pyproject.toml").exists():
+            return parent
+    return cwd
 
 
 def get_sample_data_dir() -> Path:
