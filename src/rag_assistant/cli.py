@@ -19,6 +19,8 @@ from rag_assistant.connectors.jira import (
 from rag_assistant.core.models import Chunk, UnifiedDocument
 from rag_assistant.processing.chunker import MarkdownChunker
 from rag_assistant.processing.normalizer import DocumentNormalizer
+from rag_assistant.retrieval.evaluator import RetrievalEvaluator
+from rag_assistant.retrieval.retriever import RAGRetriever
 from rag_assistant.vector_store.embeddings import get_embedder
 from rag_assistant.vector_store.qdrant import QdrantVectorStore
 
@@ -287,6 +289,112 @@ def search_qdrant_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def retrieve_command(args: argparse.Namespace) -> int:
+    """Execute contextual retrieval with hybrid re-ranking and source citations."""
+    query = args.query
+    top_k = args.top_k
+    source_filter = args.source
+    db_path = Path(args.db_path)
+    out_format = args.format
+
+    print("=" * 60)
+    print("Context-Grounded Retrieval Engine (Milestone 7)")
+    print("=" * 60)
+    print(f"User Query: \"{query}\"")
+    if source_filter:
+        print(f"Source Filter: {source_filter.upper()}")
+    print(f"Top-K Chunks: {top_k}\n")
+
+    embedder = get_embedder(use_mock=args.mock)
+    vector_store = QdrantVectorStore(
+        embedder=embedder,
+        path=db_path,
+        default_collection=args.collection,
+    )
+    retriever = RAGRetriever(vector_store=vector_store, default_top_k=top_k)
+
+    context = retriever.retrieve(
+        query=query,
+        top_k=top_k,
+        filter_source=source_filter,
+    )
+
+    if not context.chunks:
+        print("No matching knowledge base records found.")
+        return 0
+
+    if out_format == "json":
+        print(json.dumps(context.to_dict(), indent=2))
+        return 0
+
+    if out_format == "context":
+        print("=== Formatted Prompt Context for LLM Synthesis ===")
+        print(context.formatted_prompt_context)
+        print("\n=== Sources ===")
+        for s in context.sources:
+            print(f"- [{s['source_type'].upper()} {s['source_id']}] {s['title']} (Citations: {s['citation_indices']})")
+        return 0
+
+    # Default table/cards view
+    print(f"Retrieved {len(context.chunks)} top chunk(s) across {len(context.sources)} document source(s):\n")
+    for chunk in context.chunks:
+        print(f"--- {chunk.citation_tag} | Score: {chunk.score:.4f} ---")
+        print(f"Section: {' > '.join(chunk.section_path) if chunk.section_path else chunk.section_title}")
+        if chunk.url:
+            print(f"URL:     {chunk.url}")
+        print(f"Snippet:\n{chunk.raw_text[:240]}...\n")
+
+    return 0
+
+
+def evaluate_retrieval_command(args: argparse.Namespace) -> int:
+    """Execute benchmark retrieval evaluation against curated queries."""
+    queries_file = Path(args.queries)
+    db_path = Path(args.db_path)
+    collection = args.collection
+
+    print("=" * 60)
+    print("Retrieval Benchmark Evaluation (Milestone 7)")
+    print("=" * 60)
+    print(f"Benchmark File: {queries_file}")
+    print(f"Vector Database: {db_path} ('{collection}')\n")
+
+    embedder = get_embedder(use_mock=args.mock)
+    vector_store = QdrantVectorStore(
+        embedder=embedder,
+        path=db_path,
+        default_collection=collection,
+    )
+    retriever = RAGRetriever(vector_store=vector_store, default_top_k=5)
+    evaluator = RetrievalEvaluator(retriever=retriever)
+
+    report = evaluator.evaluate(queries_file=queries_file)
+
+    print("Evaluation Results per Query:")
+    print("-" * 60)
+    for r in report.query_results:
+        hit_icon = "PASS" if r.hit_at_3 else "FAIL"
+        targets = ", ".join(r.target_sources)
+        retrieved = ", ".join(r.retrieved_sources[:3])
+        print(f"[{hit_icon}] [{r.query_id}] ({r.category})")
+        print(f"  Q: \"{r.question}\"")
+        print(f"  Target:    [{targets}]")
+        print(f"  Retrieved: [{retrieved}]")
+        print(f"  Hit@1: {r.hit_at_1} | Hit@3: {r.hit_at_3} | RR: {r.reciprocal_rank:.3f}\n")
+
+    print("=" * 60)
+    print("Aggregated Retrieval Metrics:")
+    print("=" * 60)
+    print(f"  Total Benchmark Queries:   {report.total_queries}")
+    print(f"  Hit Rate @ 1:              {report.hit_rate_at_1 * 100:.1f}%")
+    print(f"  Hit Rate @ 3:              {report.hit_rate_at_3 * 100:.1f}%")
+    print(f"  Hit Rate @ 5:              {report.hit_rate_at_5 * 100:.1f}%")
+    print(f"  Mean Reciprocal Rank (MRR): {report.mrr:.4f}")
+    print("=" * 60)
+
+    return 0
+
+
 def main() -> None:
     """Main CLI entrypoint."""
     parser = argparse.ArgumentParser(
@@ -484,6 +592,88 @@ def main() -> None:
         help="Use deterministic offline MockEmbedder.",
     )
 
+    # retrieve subcommand (Milestone 7)
+    retrieve_parser = subparsers.add_parser(
+        "retrieve",
+        help="Retrieve grounded context chunks with source citations for a question.",
+    )
+    retrieve_parser.add_argument(
+        "query",
+        type=str,
+        help="User question to retrieve context for.",
+    )
+    retrieve_parser.add_argument(
+        "--top-k",
+        "-k",
+        type=int,
+        default=3,
+        help="Number of context chunks to retrieve.",
+    )
+    retrieve_parser.add_argument(
+        "--source",
+        type=str,
+        choices=["confluence", "jira"],
+        default=None,
+        help="Filter retrieval by source type.",
+    )
+    retrieve_parser.add_argument(
+        "--collection",
+        "-c",
+        type=str,
+        default="knowledge_base",
+        help="Qdrant collection name.",
+    )
+    retrieve_parser.add_argument(
+        "--db-path",
+        type=str,
+        default="data/qdrant_db",
+        help="Local Qdrant database directory.",
+    )
+    retrieve_parser.add_argument(
+        "--format",
+        "-f",
+        type=str,
+        choices=["table", "context", "json"],
+        default="table",
+        help="Output display format.",
+    )
+    retrieve_parser.add_argument(
+        "--mock",
+        action="store_true",
+        help="Use offline mock embedder.",
+    )
+
+    # evaluate-retrieval subcommand (Milestone 7)
+    eval_parser = subparsers.add_parser(
+        "evaluate-retrieval",
+        help="Evaluate retrieval performance against benchmark queries.",
+    )
+    eval_parser.add_argument(
+        "--queries",
+        "-q",
+        type=str,
+        default="data/sample/queries.json",
+        help="Path to evaluation benchmark queries JSON file.",
+    )
+    eval_parser.add_argument(
+        "--collection",
+        "-c",
+        type=str,
+        default="knowledge_base",
+        help="Qdrant collection name.",
+    )
+    eval_parser.add_argument(
+        "--db-path",
+        type=str,
+        default="data/qdrant_db",
+        help="Local Qdrant database directory.",
+    )
+    eval_parser.add_argument(
+        "--mock",
+        action="store_true",
+        help="Use offline mock embedder.",
+    )
+
     args = parser.parse_args()
 
     if args.command == "fetch-confluence":
@@ -500,6 +690,12 @@ def main() -> None:
         sys.exit(exit_code)
     elif args.command == "search-qdrant":
         exit_code = search_qdrant_command(args)
+        sys.exit(exit_code)
+    elif args.command == "retrieve":
+        exit_code = retrieve_command(args)
+        sys.exit(exit_code)
+    elif args.command == "evaluate-retrieval":
+        exit_code = evaluate_retrieval_command(args)
         sys.exit(exit_code)
     else:
         parser.print_help()

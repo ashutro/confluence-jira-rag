@@ -160,10 +160,14 @@ def load_sample_jira_issues(sample_dir: Optional[Path] = None) -> List[JiraIssue
     return [JiraIssue.from_dict(item) for item in data]
 
 
-def load_benchmark_queries(sample_dir: Optional[Path] = None) -> List[BenchmarkQuery]:
-    """Load benchmark test questions from data/sample/queries.json."""
-    base_dir = sample_dir or get_sample_data_dir()
-    queries_json_path = base_dir / "queries.json"
+def load_benchmark_queries(sample_dir: Optional[Path | str] = None) -> List[BenchmarkQuery]:
+    """Load benchmark test questions from data/sample/queries.json or specified path."""
+    if sample_dir is not None:
+        target = Path(sample_dir)
+        queries_json_path = target if target.is_file() else target / "queries.json"
+    else:
+        queries_json_path = get_sample_data_dir() / "queries.json"
+
     if not queries_json_path.exists():
         raise FileNotFoundError(f"Benchmark queries file not found: {queries_json_path}")
 

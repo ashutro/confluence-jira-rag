@@ -25,6 +25,7 @@ confluence-jira-rag/
     milestone-4-jira-connector.md
     milestone-5-normalization-chunking.md
     milestone-6-vector-database-qdrant.md
+    milestone-7-retrieval.md
   src/
     rag_assistant/      # Python package
       config.py         # Environment configuration
@@ -43,12 +44,16 @@ confluence-jira-rag/
       vector_store/     # Embeddings & Vector Database (Milestone 6)
         embeddings.py   # FastEmbed & MockEmbedder
         qdrant.py       # QdrantVectorStore & SearchResult
+      retrieval/        # Retrieval Engine & Evaluation (Milestone 7)
+        retriever.py    # RAGRetriever & RetrievalContext
+        evaluator.py    # RetrievalEvaluator & BenchmarkReport
   tests/                # Automated tests
     test_sample_data.py
     test_confluence_connector.py
     test_jira_connector.py
     test_normalizer_and_chunker.py
     test_vector_store.py
+    test_retrieval.py
 ```
 
 ## Local Setup
@@ -68,9 +73,9 @@ Run automated tests:
 pytest tests/ -v
 ```
 
-## Data & Search Pipeline Commands
+## Data & Retrieval Pipeline Commands
 
-### 1. Retrieve Data (Milestones 3 & 4)
+### 1. Ingest Data (Milestones 3 & 4)
 ```bash
 rag-assistant fetch-confluence --mock --output data/raw/confluence/pages.json
 rag-assistant fetch-jira --mock --output data/raw/jira/issues.json
@@ -81,18 +86,24 @@ rag-assistant fetch-jira --mock --output data/raw/jira/issues.json
 rag-assistant normalize-chunk --mock
 ```
 
-### 3. Index & Search with Qdrant Vector DB (Milestone 6)
+### 3. Vector Database Indexing (Milestone 6)
 ```bash
-# Index chunks into Qdrant
 rag-assistant index-qdrant --mock --db-path data/qdrant_db --recreate
-
-# Perform semantic search across Confluence and Jira knowledge base
-rag-assistant search-qdrant "What should on-call do for webhook 504?" --mock
-rag-assistant search-qdrant "Rate limit tiers and headers" --mock --source confluence
-rag-assistant search-qdrant "Apple Silicon docker crash" --mock --source jira
 ```
 
-See [docs/milestone-6-vector-database-qdrant.md](file:///Users/ashutosh/Documents/Codex/2026-08-22/referenced-chatgpt-conversation-this-is-an/confluence-jira-rag/docs/milestone-6-vector-database-qdrant.md) for full details.
+### 4. Context Retrieval & Evaluation (Milestone 7)
+```bash
+# Retrieve grounded context with source citations:
+rag-assistant retrieve "What is the runbook for webhook 504 gateway timeouts?" --mock --top-k 3
+
+# Retrieve formatted LLM prompt context:
+rag-assistant retrieve "How do rate limit tiers work?" --mock --top-k 2 --format context
+
+# Run retrieval benchmark evaluation:
+rag-assistant evaluate-retrieval --mock
+```
+
+See [docs/milestone-7-retrieval.md](file:///Users/ashutosh/Documents/Codex/2026-08-22/referenced-chatgpt-conversation-this-is-an/confluence-jira-rag/docs/milestone-7-retrieval.md) for full details.
 
 ## Status
 
@@ -102,5 +113,5 @@ See [docs/milestone-6-vector-database-qdrant.md](file:///Users/ashutosh/Document
 - [x] **Milestone 4**: Jira Connector
 - [x] **Milestone 5**: Data Normalization & Chunking
 - [x] **Milestone 6**: Vector Database (Qdrant) & Semantic Search
-- [ ] **Milestone 7**: RAG Retrieval, Grounding & Evaluation
+- [x] **Milestone 7**: Context-Grounded Retrieval & Benchmark Evaluation
 - [ ] **Milestone 8**: LLM Q&A Assistant CLI / Web App

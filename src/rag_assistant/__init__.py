@@ -20,6 +20,16 @@ from rag_assistant.processing.normalizer import (
     normalize_confluence_page,
     normalize_jira_issue,
 )
+from rag_assistant.retrieval.evaluator import (
+    BenchmarkReport,
+    QueryEvalResult,
+    RetrievalEvaluator,
+)
+from rag_assistant.retrieval.retriever import (
+    RAGRetriever,
+    RetrievalContext,
+    RetrievedChunk,
+)
 from rag_assistant.sample_data import (
     BenchmarkQuery,
     ConfluencePage,
@@ -63,6 +73,12 @@ __all__ = [
     "get_embedder",
     "QdrantVectorStore",
     "SearchResult",
+    "RAGRetriever",
+    "RetrievedChunk",
+    "RetrievalContext",
+    "RetrievalEvaluator",
+    "BenchmarkReport",
+    "QueryEvalResult",
     "ConfluencePage",
     "JiraIssue",
     "BenchmarkQuery",
