@@ -28,6 +28,16 @@ from rag_assistant.sample_data import (
     load_sample_confluence_pages,
     load_sample_jira_issues,
 )
+from rag_assistant.vector_store.embeddings import (
+    BaseEmbedder,
+    FastEmbedder,
+    MockEmbedder,
+    get_embedder,
+)
+from rag_assistant.vector_store.qdrant import (
+    QdrantVectorStore,
+    SearchResult,
+)
 
 __version__ = "0.1.0"
 __all__ = [
@@ -47,6 +57,12 @@ __all__ = [
     "normalize_confluence_page",
     "normalize_jira_issue",
     "MarkdownChunker",
+    "BaseEmbedder",
+    "FastEmbedder",
+    "MockEmbedder",
+    "get_embedder",
+    "QdrantVectorStore",
+    "SearchResult",
     "ConfluencePage",
     "JiraIssue",
     "BenchmarkQuery",

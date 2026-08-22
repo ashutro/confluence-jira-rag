@@ -17,12 +17,14 @@ confluence-jira-rag/
     processed/          # Normalized & chunked datasets ready for RAG
       normalized_documents.json # UnifiedDocument collection
       chunks.json       # Context-enriched text chunks
+    qdrant_db/          # Local on-disk Qdrant vector database
   docs/                 # Notes and project documentation
     milestone-1-setup.md
     milestone-2-atlassian-setup.md
     milestone-3-confluence-connector.md
     milestone-4-jira-connector.md
     milestone-5-normalization-chunking.md
+    milestone-6-vector-database-qdrant.md
   src/
     rag_assistant/      # Python package
       config.py         # Environment configuration
@@ -38,11 +40,15 @@ confluence-jira-rag/
       processing/       # Normalization & Chunking
         normalizer.py   # Document normalizer
         chunker.py      # Hierarchical Markdown chunker
+      vector_store/     # Embeddings & Vector Database (Milestone 6)
+        embeddings.py   # FastEmbed & MockEmbedder
+        qdrant.py       # QdrantVectorStore & SearchResult
   tests/                # Automated tests
     test_sample_data.py
     test_confluence_connector.py
     test_jira_connector.py
     test_normalizer_and_chunker.py
+    test_vector_store.py
 ```
 
 ## Local Setup
@@ -62,26 +68,31 @@ Run automated tests:
 pytest tests/ -v
 ```
 
-## Data Pipeline Commands
+## Data & Search Pipeline Commands
 
 ### 1. Retrieve Data (Milestones 3 & 4)
-
 ```bash
-# Confluence Connector
 rag-assistant fetch-confluence --mock --output data/raw/confluence/pages.json
-
-# Jira Connector
 rag-assistant fetch-jira --mock --output data/raw/jira/issues.json
 ```
 
 ### 2. Normalize and Chunk (Milestone 5)
-
 ```bash
-# Normalize documents and generate hierarchical text chunks:
 rag-assistant normalize-chunk --mock
 ```
 
-See [docs/milestone-5-normalization-chunking.md](file:///Users/ashutosh/Documents/Codex/2026-08-22/referenced-chatgpt-conversation-this-is-an/confluence-jira-rag/docs/milestone-5-normalization-chunking.md) for full details.
+### 3. Index & Search with Qdrant Vector DB (Milestone 6)
+```bash
+# Index chunks into Qdrant
+rag-assistant index-qdrant --mock --db-path data/qdrant_db --recreate
+
+# Perform semantic search across Confluence and Jira knowledge base
+rag-assistant search-qdrant "What should on-call do for webhook 504?" --mock
+rag-assistant search-qdrant "Rate limit tiers and headers" --mock --source confluence
+rag-assistant search-qdrant "Apple Silicon docker crash" --mock --source jira
+```
+
+See [docs/milestone-6-vector-database-qdrant.md](file:///Users/ashutosh/Documents/Codex/2026-08-22/referenced-chatgpt-conversation-this-is-an/confluence-jira-rag/docs/milestone-6-vector-database-qdrant.md) for full details.
 
 ## Status
 
@@ -90,4 +101,6 @@ See [docs/milestone-5-normalization-chunking.md](file:///Users/ashutosh/Document
 - [x] **Milestone 3**: Confluence Connector
 - [x] **Milestone 4**: Jira Connector
 - [x] **Milestone 5**: Data Normalization & Chunking
-- [ ] **Milestone 6**: Embeddings & Vector Database
+- [x] **Milestone 6**: Vector Database (Qdrant) & Semantic Search
+- [ ] **Milestone 7**: RAG Retrieval, Grounding & Evaluation
+- [ ] **Milestone 8**: LLM Q&A Assistant CLI / Web App

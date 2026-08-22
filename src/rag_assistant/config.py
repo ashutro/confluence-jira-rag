@@ -36,6 +36,11 @@ class Settings:
     jira_email: Optional[str] = None
     jira_api_token: Optional[str] = None
     jira_project_key: Optional[str] = None
+    qdrant_url: Optional[str] = None
+    qdrant_api_key: Optional[str] = None
+    qdrant_path: str = "data/qdrant_db"
+    qdrant_collection_name: str = "knowledge_base"
+    embedding_model: str = "BAAI/bge-small-en-v1.5"
 
     @classmethod
     def from_env(cls, env_file: Optional[Path | str] = None) -> Settings:
@@ -59,6 +64,12 @@ class Settings:
         jira_token = os.getenv("JIRA_API_TOKEN", "").strip() or None
         jira_proj = os.getenv("JIRA_PROJECT_KEY", "").strip() or None
 
+        q_url = os.getenv("QDRANT_URL", "").strip().rstrip("/") or None
+        q_key = os.getenv("QDRANT_API_KEY", "").strip() or None
+        q_path = os.getenv("QDRANT_PATH", "data/qdrant_db").strip()
+        q_col = os.getenv("QDRANT_COLLECTION_NAME", "knowledge_base").strip()
+        emb_model = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5").strip()
+
         return cls(
             confluence_base_url=base_url,
             confluence_email=email,
@@ -68,6 +79,11 @@ class Settings:
             jira_email=jira_email,
             jira_api_token=jira_token,
             jira_project_key=jira_proj,
+            qdrant_url=q_url,
+            qdrant_api_key=q_key,
+            qdrant_path=q_path,
+            qdrant_collection_name=q_col,
+            embedding_model=emb_model,
         )
 
     def validate_confluence(self) -> None:

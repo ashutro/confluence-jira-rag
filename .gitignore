@@ -22,6 +22,7 @@ venv/
 # Local data
 data/raw/*
 data/processed/*
+data/qdrant_db/
 !data/raw/.gitkeep
 !data/processed/.gitkeep
 

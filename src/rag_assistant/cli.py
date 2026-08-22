@@ -16,9 +16,11 @@ from rag_assistant.connectors.jira import (
     JiraConnector,
     MockJiraConnector,
 )
-from rag_assistant.core.models import UnifiedDocument
+from rag_assistant.core.models import Chunk, UnifiedDocument
 from rag_assistant.processing.chunker import MarkdownChunker
 from rag_assistant.processing.normalizer import DocumentNormalizer
+from rag_assistant.vector_store.embeddings import get_embedder
+from rag_assistant.vector_store.qdrant import QdrantVectorStore
 
 
 def fetch_confluence_command(args: argparse.Namespace) -> int:
@@ -184,12 +186,103 @@ def normalize_and_chunk_command(args: argparse.Namespace) -> int:
     print(f"  - Average Chunk Character Count: {avg_chars:.1f}")
     print(f"  - Average Chunk Word Count:      {avg_words:.1f}")
 
-    print("\nSample Chunk Preview:")
-    if chunks:
-        sample = chunks[0]
-        print(f"  Chunk ID: {sample.chunk_id}")
-        print(f"  Section:  {sample.section_title} (Path: {' > '.join(sample.section_path)})")
-        print(f"  Snippet:  {sample.text[:180]}...")
+    return 0
+
+
+def index_qdrant_command(args: argparse.Namespace) -> int:
+    """Embed chunks and index into Qdrant Vector Database."""
+    input_file = Path(args.input)
+    db_path = Path(args.db_path)
+    collection = args.collection
+    recreate = args.recreate
+
+    print("=" * 60)
+    print("Qdrant Vector Database Indexing (Milestone 6)")
+    print("=" * 60)
+
+    if not input_file.exists():
+        if args.mock:
+            print(f"Chunks file '{input_file}' not found. Auto-running normalize-chunk in mock mode...")
+            norm_args = argparse.Namespace(
+                input_confluence="data/raw/confluence/pages.json",
+                input_jira="data/raw/jira/issues.json",
+                output_docs="data/processed/normalized_documents.json",
+                output_chunks=str(input_file),
+                chunk_size=800,
+                chunk_overlap=100,
+                mock=True,
+            )
+            normalize_and_chunk_command(norm_args)
+        else:
+            print(f"[Error] Input chunks file '{input_file}' not found. Run `normalize-chunk` first.", file=sys.stderr)
+            return 1
+
+    with open(input_file, "r", encoding="utf-8") as f:
+        raw_chunks = json.load(f)
+
+    chunks = [Chunk.from_dict(c) for c in raw_chunks]
+    print(f"Loaded {len(chunks)} chunk(s) from {input_file}")
+
+    embedder = get_embedder(use_mock=args.mock)
+    print(f"Embedder: {embedder.__class__.__name__} (dimension={embedder.dimension})")
+    print(f"Qdrant Storage: Local on-disk ({db_path})")
+    print(f"Target Collection: '{collection}'")
+
+    vector_store = QdrantVectorStore(
+        embedder=embedder,
+        path=db_path,
+        default_collection=collection,
+    )
+
+    if recreate:
+        print(f"Recreating collection '{collection}'...")
+        vector_store.init_collection(collection, recreate=True)
+
+    print("\nGenerating embeddings and upserting points to Qdrant...")
+    indexed_count = vector_store.index_chunks(chunks, collection_name=collection)
+    print(f"Successfully indexed {indexed_count} vector points into Qdrant collection '{collection}'.")
+    return 0
+
+
+def search_qdrant_command(args: argparse.Namespace) -> int:
+    """Perform semantic similarity search against Qdrant."""
+    query = args.query
+    collection = args.collection
+    db_path = Path(args.db_path)
+    limit = args.limit
+    source_filter = args.source
+    threshold = args.score_threshold
+
+    print("=" * 60)
+    print(f"Qdrant Semantic Search Query: \"{query}\"")
+    print("=" * 60)
+
+    embedder = get_embedder(use_mock=args.mock)
+    vector_store = QdrantVectorStore(
+        embedder=embedder,
+        path=db_path,
+        default_collection=collection,
+    )
+
+    results = vector_store.search(
+        query=query,
+        limit=limit,
+        score_threshold=threshold,
+        filter_source=source_filter,
+        collection_name=collection,
+    )
+
+    if not results:
+        print("\nNo matching documents found in Qdrant collection.")
+        return 0
+
+    print(f"\nFound {len(results)} relevant result(s):\n")
+    for idx, hit in enumerate(results, start=1):
+        print(f"--- [Rank {idx}] Score: {hit.score:.4f} | {hit.source_type.upper()} [{hit.source_id}] ---")
+        print(f"Title:   {hit.title}")
+        print(f"Section: {' > '.join(hit.section_path) if hit.section_path else hit.section_title}")
+        print(f"Snippet:\n{hit.raw_text[:280]}...")
+        print()
 
     return 0
 
@@ -212,7 +305,7 @@ def main() -> None:
         "-s",
         type=str,
         default=None,
-        help="Confluence Space Key (e.g. ENG). If omitted, uses CONFLUENCE_SPACE_KEY from .env.",
+        help="Confluence Space Key (e.g. ENG).",
     )
     fetch_conf_parser.add_argument(
         "--output",
@@ -237,14 +330,14 @@ def main() -> None:
         "-p",
         type=str,
         default=None,
-        help="Jira Project Key (e.g. PAY). If omitted, uses JIRA_PROJECT_KEY from .env.",
+        help="Jira Project Key (e.g. PAY).",
     )
     fetch_jira_parser.add_argument(
         "--jql",
         "-j",
         type=str,
         default=None,
-        help="Custom JQL query string to filter issues.",
+        help="Custom JQL query string.",
     )
     fetch_jira_parser.add_argument(
         "--output",
@@ -306,6 +399,91 @@ def main() -> None:
         help="Automatically generate mock raw files if missing.",
     )
 
+    # index-qdrant subcommand
+    index_parser = subparsers.add_parser(
+        "index-qdrant",
+        help="Embed chunks and index them into Qdrant Vector Database.",
+    )
+    index_parser.add_argument(
+        "--input",
+        "-i",
+        type=str,
+        default="data/processed/chunks.json",
+        help="Path to processed chunks.json.",
+    )
+    index_parser.add_argument(
+        "--collection",
+        "-c",
+        type=str,
+        default="knowledge_base",
+        help="Qdrant collection name.",
+    )
+    index_parser.add_argument(
+        "--db-path",
+        type=str,
+        default="data/qdrant_db",
+        help="Local on-disk Qdrant storage path.",
+    )
+    index_parser.add_argument(
+        "--recreate",
+        action="store_true",
+        help="Recreate the Qdrant collection if it already exists.",
+    )
+    index_parser.add_argument(
+        "--mock",
+        action="store_true",
+        help="Use deterministic offline MockEmbedder.",
+    )
+
+    # search-qdrant subcommand
+    search_parser = subparsers.add_parser(
+        "search-qdrant",
+        help="Execute semantic search against Qdrant Vector Database.",
+    )
+    search_parser.add_argument(
+        "query",
+        type=str,
+        help="Natural language question or search query.",
+    )
+    search_parser.add_argument(
+        "--collection",
+        "-c",
+        type=str,
+        default="knowledge_base",
+        help="Qdrant collection name.",
+    )
+    search_parser.add_argument(
+        "--db-path",
+        type=str,
+        default="data/qdrant_db",
+        help="Local on-disk Qdrant storage path.",
+    )
+    search_parser.add_argument(
+        "--limit",
+        "-k",
+        type=int,
+        default=5,
+        help="Maximum number of top search results to return.",
+    )
+    search_parser.add_argument(
+        "--source",
+        type=str,
+        choices=["confluence", "jira"],
+        default=None,
+        help="Filter search results by source type.",
+    )
+    search_parser.add_argument(
+        "--score-threshold",
+        type=float,
+        default=None,
+        help="Minimum similarity score threshold (0.0 to 1.0).",
+    )
+    search_parser.add_argument(
+        "--mock",
+        action="store_true",
+        help="Use deterministic offline MockEmbedder.",
+    )
+
     args = parser.parse_args()
 
     if args.command == "fetch-confluence":
@@ -316,6 +494,12 @@ def main() -> None:
         sys.exit(exit_code)
     elif args.command == "normalize-chunk":
         exit_code = normalize_and_chunk_command(args)
+        sys.exit(exit_code)
+    elif args.command == "index-qdrant":
+        exit_code = index_qdrant_command(args)
+        sys.exit(exit_code)
+    elif args.command == "search-qdrant":
+        exit_code = search_qdrant_command(args)
         sys.exit(exit_code)
     else:
         parser.print_help()
