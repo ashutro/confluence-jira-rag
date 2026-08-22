@@ -654,12 +654,15 @@ def serve_command(args: argparse.Namespace) -> int:
     model = args.model
     threshold = args.score_threshold
 
+    active_p = "Offline Mock" if use_mock else (provider or os.getenv("DEFAULT_LLM_PROVIDER", "openrouter"))
+    active_m = model or os.getenv("OPENROUTER_MODEL", "stealth/ox-alpha")
+
     print("=" * 60)
     print("🚀 Confluence + Jira RAG Assistant Web Server (Milestone 10)")
     print("=" * 60)
     print(f"🌐 Server URL:          http://{host}:{port}")
     print(f"📊 Vector Storage:      {db_path} ('{collection}')")
-    print(f"🤖 LLM Generation Mode: {'Offline Mock' if use_mock else (provider or 'OpenAI')}")
+    print(f"🤖 LLM Provider:        {active_p} ({active_m})")
     print(f"🛡️ Guardrail Threshold: {threshold:.2f}")
     print("=" * 60 + "\n")
 
