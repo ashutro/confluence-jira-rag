@@ -1,81 +1,95 @@
 /**
- * Confluence + Jira RAG Assistant - ChatGPT & Gemini Interface
+ * Confluence + Jira RAG Assistant - ChatGPT Clean Web App
  */
 
 document.addEventListener("DOMContentLoaded", () => {
   // DOM Elements
+  const gptSidebar = document.getElementById("gpt-sidebar");
+  const sidebarToggleBtn = document.getElementById("sidebar-toggle-btn");
+  const sidebarCloseBtn = document.getElementById("sidebar-close-btn");
+  const newChatBtn = document.getElementById("new-chat-btn");
+  const clearThreadBtn = document.getElementById("clear-thread-btn");
+  const chatHistoryList = document.getElementById("chat-history-list");
   const chatViewport = document.getElementById("chat-viewport");
+  const gptHero = document.getElementById("gpt-hero");
   const chatThread = document.getElementById("chat-thread");
-  const geminiHero = document.getElementById("gemini-hero");
   const chatForm = document.getElementById("chat-form");
   const userInput = document.getElementById("user-input");
   const sendBtn = document.getElementById("send-btn");
-  const newChatBtn = document.getElementById("new-chat-btn");
-  const clearThreadBtn = document.getElementById("clear-thread-btn");
-  const sidebarToggle = document.getElementById("sidebar-toggle");
-  const geminiSidebar = document.getElementById("gemini-sidebar");
-  const chatHistoryList = document.getElementById("chat-history-list");
   const activeModelLabel = document.getElementById("active-model-label");
-  const liveStatusPill = document.getElementById("live-status-pill");
   const statChunks = document.getElementById("stat-chunks");
   const statDocs = document.getElementById("stat-docs");
-  const statEngine = document.getElementById("stat-engine");
   const thresholdSlider = document.getElementById("threshold-slider");
   const thresholdVal = document.getElementById("threshold-val");
+  const scopeBtns = document.querySelectorAll(".scope-btn");
   const dockScopeBadge = document.getElementById("dock-scope-badge");
   const scopeText = document.getElementById("scope-text");
-  const sourcePills = document.querySelectorAll(".source-pill");
-  const bentoCards = document.querySelectorAll(".bento-card");
+  const capsuleBtns = document.querySelectorAll(".capsule-btn");
   const toastContainer = document.getElementById("toast-container");
 
   // State
   let activeSourceFilter = "";
   let scoreThreshold = 0.20;
   let isGenerating = false;
-  let sessions = JSON.parse(localStorage.getItem("rag_chat_sessions") || "[]");
+  let sessions = JSON.parse(localStorage.getItem("gpt_rag_sessions") || "[]");
   let currentSessionId = null;
 
   // Initialize
   initSessions();
   fetchHealth();
   fetchStats();
+  updateSendBtnState();
 
-  // 1. Sidebar Toggle
-  sidebarToggle.addEventListener("click", () => {
-    geminiSidebar.classList.toggle("collapsed");
-  });
+  // 1. Sidebar Toggles
+  if (sidebarToggleBtn) {
+    sidebarToggleBtn.addEventListener("click", () => {
+      gptSidebar.classList.remove("collapsed");
+    });
+  }
+  if (sidebarCloseBtn) {
+    sidebarCloseBtn.addEventListener("click", () => {
+      gptSidebar.classList.add("collapsed");
+    });
+  }
 
   // 2. Source Scope Selector
-  sourcePills.forEach(pill => {
-    pill.addEventListener("click", () => {
-      sourcePills.forEach(p => p.classList.remove("active"));
-      pill.classList.add("active");
-      activeSourceFilter = pill.dataset.source;
+  scopeBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      scopeBtns.forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      activeSourceFilter = btn.dataset.source;
 
+      const dot = dockScopeBadge.querySelector(".scope-dot");
       if (!activeSourceFilter) {
-        scopeText.textContent = "All Sources";
-        dockScopeBadge.querySelector(".scope-icon").textContent = "🌐";
+        scopeText.textContent = "All Knowledge";
+        if (dot) dot.className = "scope-dot all";
       } else if (activeSourceFilter === "confluence") {
-        scopeText.textContent = "Confluence Docs";
-        dockScopeBadge.querySelector(".scope-icon").textContent = "📘";
+        scopeText.textContent = "Confluence Only";
+        if (dot) dot.className = "scope-dot conf";
       } else if (activeSourceFilter === "jira") {
-        scopeText.textContent = "Jira Issues";
-        dockScopeBadge.querySelector(".scope-icon").textContent = "🎯";
+        scopeText.textContent = "Jira Only";
+        if (dot) dot.className = "scope-dot jira";
       }
     });
   });
 
-  // 3. Threshold Slider
+  // 3. Sensitivity Threshold
   thresholdSlider.addEventListener("input", (e) => {
     scoreThreshold = parseFloat(e.target.value);
     thresholdVal.textContent = scoreThreshold.toFixed(2);
   });
 
-  // 4. Auto-resize Textarea
+  // 4. Auto-resize Textarea & Send Button State
   userInput.addEventListener("input", () => {
     userInput.style.height = "auto";
-    userInput.style.height = Math.min(userInput.scrollHeight, 140) + "px";
+    userInput.style.height = Math.min(userInput.scrollHeight, 180) + "px";
+    updateSendBtnState();
   });
+
+  function updateSendBtnState() {
+    const hasText = userInput.value.trim().length > 0;
+    sendBtn.disabled = !hasText || isGenerating;
+  }
 
   // 5. Enter Key handling (Shift+Enter for newline)
   userInput.addEventListener("keydown", (e) => {
@@ -87,13 +101,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 6. Bento Card Quick Prompts
-  bentoCards.forEach(card => {
-    card.addEventListener("click", () => {
+  // 6. Capsule Quick Prompts
+  capsuleBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
       if (isGenerating) return;
-      const q = card.dataset.query;
+      const q = btn.dataset.query;
       userInput.value = q;
       userInput.style.height = "auto";
+      updateSendBtnState();
       chatForm.dispatchEvent(new Event("submit"));
     });
   });
@@ -103,10 +118,10 @@ document.addEventListener("DOMContentLoaded", () => {
     createNewSession();
   });
 
-  // 8. Clear Current Thread Button
+  // 8. Clear Current Conversation
   clearThreadBtn.addEventListener("click", () => {
     chatThread.innerHTML = "";
-    geminiHero.style.display = "block";
+    gptHero.style.display = "block";
     if (currentSessionId) {
       sessions = sessions.filter(s => s.id !== currentSessionId);
       saveSessions();
@@ -126,7 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
       currentSessionId = "session_" + Date.now();
       sessions.unshift({
         id: currentSessionId,
-        title: query.slice(0, 32) + (query.length > 32 ? "..." : ""),
+        title: query.slice(0, 34) + (query.length > 34 ? "..." : ""),
         messages: [],
         timestamp: Date.now(),
       });
@@ -134,20 +149,21 @@ document.addEventListener("DOMContentLoaded", () => {
       renderHistoryList();
     }
 
-    // Hide Hero Banner
-    geminiHero.style.display = "none";
+    // Hide Hero
+    gptHero.style.display = "none";
 
     // Append User Message
     appendUserMessage(query);
     userInput.value = "";
     userInput.style.height = "auto";
+    updateSendBtnState();
 
     // Set Loading State
     isGenerating = true;
     sendBtn.disabled = true;
 
     // Append Typing Indicator
-    const typingRow = appendTypingIndicator();
+    const typingTurn = appendTypingIndicator();
     scrollToBottom();
 
     const startTime = performance.now();
@@ -173,7 +189,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const elapsedSec = ((performance.now() - startTime) / 1000).toFixed(1);
       data.elapsed_sec = elapsedSec;
 
-      typingRow.remove();
+      typingTurn.remove();
       appendAssistantMessage(data);
 
       // Save to active session
@@ -185,11 +201,11 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
     } catch (err) {
-      typingRow.remove();
-      appendErrorMessage(err.message || "Failed to generate response.");
+      typingTurn.remove();
+      appendErrorMessage(err.message || "Failed to generate answer.");
     } finally {
       isGenerating = false;
-      sendBtn.disabled = false;
+      updateSendBtnState();
       scrollToBottom();
       userInput.focus();
     }
@@ -198,12 +214,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // UI Message Appenders
   function appendUserMessage(text) {
     const turn = document.createElement("div");
-    turn.className = "chat-turn user";
+    turn.className = "message-turn user";
     turn.innerHTML = `
-      <div class="turn-avatar user">U</div>
-      <div class="turn-content">
-        <p>${escapeHtml(text)}</p>
-      </div>
+      <div class="user-bubble">${escapeHtml(text)}</div>
     `;
     chatThread.appendChild(turn);
     scrollToBottom();
@@ -211,15 +224,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function appendTypingIndicator() {
     const turn = document.createElement("div");
-    turn.className = "chat-turn bot";
+    turn.className = "message-turn assistant";
     turn.id = "typing-turn";
     turn.innerHTML = `
-      <div class="turn-avatar bot">✦</div>
-      <div class="turn-content">
-        <div class="gemini-typing-dots">
-          <div class="gemini-typing-dot"></div>
-          <div class="gemini-typing-dot"></div>
-          <div class="gemini-typing-dot"></div>
+      <div class="assistant-body">
+        <div class="gpt-typing-dots">
+          <div class="gpt-dot"></div>
+          <div class="gpt-dot"></div>
+          <div class="gpt-dot"></div>
         </div>
       </div>
     `;
@@ -229,88 +241,82 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function appendAssistantMessage(data) {
     const turn = document.createElement("div");
-    turn.className = "chat-turn bot";
+    turn.className = "message-turn assistant";
 
     const isGrounded = data.guardrail && data.guardrail.is_grounded;
     const confidence = data.guardrail ? Math.round((data.guardrail.confidence_score || 0) * 100) : 85;
-    const model = data.model_name || data.provider || "Stealth OX-Alpha";
     const chunksCount = data.context && data.context.chunks ? data.context.chunks.length : (data.sources ? data.sources.length : 3);
     const elapsed = data.elapsed_sec || (data.execution_time_ms ? (data.execution_time_ms / 1000).toFixed(1) : "1.2");
 
-    // 1. Thought Process Accordion (Reasoning Box)
-    let reasoningHtml = "";
+    // 1. Thought Accordion (ChatGPT o1/o3 style)
+    let thoughtHtml = "";
     if (data.guardrail || (data.context && data.context.chunks)) {
       const citedList = data.guardrail && data.guardrail.cited_source_ids ? data.guardrail.cited_source_ids.join(", ") : "All target documents";
-      reasoningHtml = `
-        <div class="thought-box">
-          <div class="thought-header" onclick="this.parentElement.classList.toggle('expanded')">
-            <div class="thought-title">
-              <span class="sparkle">✦</span>
-              <span>Thought for ${elapsed}s • ${chunksCount} knowledge chunks analyzed</span>
-            </div>
+      thoughtHtml = `
+        <div class="thought-dropdown">
+          <div class="thought-summary">
+            <span>Thought for ${elapsed} seconds (${chunksCount} sources retrieved)</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="6 9 12 15 18 9"></polyline>
+              <path d="M6 9l6 6 6-6"/>
             </svg>
           </div>
-          <div class="thought-body" style="display: none;">
-            <p><strong>Vector Similarity:</strong> Retrieved top ${chunksCount} matching sections from Qdrant vector database.</p>
-            <p><strong>Grounding Verification:</strong> Guardrail confidence score: <code>${(data.guardrail?.confidence_score || 0.85).toFixed(4)}</code> (Threshold: ${scoreThreshold}).</p>
-            <p><strong>Verified Sources:</strong> ${citedList}</p>
+          <div class="thought-content" style="display: none;">
+            <p>• Similarity score: <code>${(data.guardrail?.confidence_score || 0.85).toFixed(4)}</code> (Threshold: ${scoreThreshold})</p>
+            <p>• Grounded in: ${citedList}</p>
           </div>
         </div>
       `;
     }
 
-    // 2. Grounding Badge
+    // 2. Grounding status pill
     const badgeClass = isGrounded ? "verified" : "refusal";
-    const badgeText = isGrounded ? `✓ Grounded in Confluence & Jira (${confidence}% match)` : `⚠ Guardrail Refusal (Out of Domain)`;
+    const badgeText = isGrounded ? `✓ Grounded in Confluence & Jira (${confidence}% match)` : `⚠ Guardrail Refusal`;
 
-    // 3. Rendered Markdown
-    const markdownHtml = renderAdvancedMarkdown(data.answer);
+    // 3. Formatted Markdown
+    const markdownHtml = renderGptMarkdown(data.answer);
 
-    // 4. Sources Drawer
-    let sourcesDrawerHtml = "";
+    // 4. Citation Pills Row
+    let citationsHtml = "";
     if (data.sources && data.sources.length > 0) {
-      const cardsHtml = data.sources.map(s => {
+      const chips = data.sources.map(s => {
         const type = (s.source_type || "doc").toLowerCase();
         const urlAttr = s.url ? `href="${s.url}" target="_blank" rel="noopener"` : "";
         return `
-          <a class="source-card-chip" ${urlAttr} title="${escapeHtml(s.title || s.source_id)}">
-            <span class="type-pill ${type}">${escapeHtml(s.source_type || "DOC")}</span>
+          <a class="citation-chip" ${urlAttr} title="${escapeHtml(s.title || s.source_id)}">
+            <span class="chip-tag ${type}">${escapeHtml(s.source_type || "DOC")}</span>
             <span>${escapeHtml(s.source_id)}</span>
           </a>
         `;
       }).join("");
 
-      sourcesDrawerHtml = `
-        <div class="sources-drawer">
-          <div class="sources-label">Referenced Sources (${data.sources.length})</div>
-          <div class="sources-chips-grid">${cardsHtml}</div>
+      citationsHtml = `
+        <div class="citations-row">
+          <span style="font-size:0.75rem; color:var(--gpt-text-muted); margin-right:4px;">Sources:</span>
+          ${chips}
         </div>
       `;
     }
 
     turn.innerHTML = `
-      <div class="turn-avatar bot">✦</div>
-      <div class="turn-content">
-        ${reasoningHtml}
-        <div class="grounding-chip ${badgeClass}">${badgeText}</div>
-        <div class="markdown-body">${markdownHtml}</div>
-        ${sourcesDrawerHtml}
+      <div class="assistant-body">
+        ${thoughtHtml}
+        <div class="grounded-badge ${badgeClass}">${badgeText}</div>
+        <div class="gpt-prose">${markdownHtml}</div>
+        ${citationsHtml}
 
-        <div class="turn-actions-bar">
-          <button class="turn-action-btn copy-btn" title="Copy answer">
+        <div class="message-actions-bar">
+          <button class="action-btn copy-btn" title="Copy response">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
               <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
             </svg>
           </button>
-          <button class="turn-action-btn like-btn" title="Good response">
+          <button class="action-btn" title="Good response">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
             </svg>
           </button>
-          <button class="turn-action-btn dislike-btn" title="Bad response">
+          <button class="action-btn" title="Bad response">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"/>
             </svg>
@@ -319,7 +325,7 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     `;
 
-    // Add Copy listener
+    // Copy Action
     const copyBtn = turn.querySelector(".copy-btn");
     if (copyBtn) {
       copyBtn.addEventListener("click", () => {
@@ -329,21 +335,21 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // Add accordion click
-    const thoughtHeader = turn.querySelector(".thought-header");
-    if (thoughtHeader) {
-      thoughtHeader.addEventListener("click", () => {
-        const body = turn.querySelector(".thought-body");
-        if (body) {
-          body.style.display = body.style.display === "none" ? "block" : "none";
+    // Thought Toggle
+    const thoughtSummary = turn.querySelector(".thought-summary");
+    if (thoughtSummary) {
+      thoughtSummary.addEventListener("click", () => {
+        const content = turn.querySelector(".thought-content");
+        if (content) {
+          content.style.display = content.style.display === "none" ? "block" : "none";
         }
       });
     }
 
-    // Add Code Block copy buttons
-    turn.querySelectorAll(".code-block-container").forEach(block => {
+    // Code Block Copy Buttons
+    turn.querySelectorAll(".code-container").forEach(block => {
       const codeText = block.querySelector("pre").innerText;
-      const copyCodeBtn = block.querySelector(".copy-code-btn");
+      const copyCodeBtn = block.querySelector(".code-copy-btn");
       if (copyCodeBtn) {
         copyCodeBtn.addEventListener("click", () => {
           navigator.clipboard.writeText(codeText).then(() => {
@@ -360,13 +366,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function appendErrorMessage(msg) {
     const turn = document.createElement("div");
-    turn.className = "chat-turn bot";
+    turn.className = "message-turn assistant";
     turn.innerHTML = `
-      <div class="turn-avatar bot">✦</div>
-      <div class="turn-content">
-        <div class="grounding-chip refusal">⚠ System Error</div>
-        <div class="markdown-body" style="color: var(--gemini-rose);">
-          <p><strong>Failed to retrieve or generate answer:</strong> ${escapeHtml(msg)}</p>
+      <div class="assistant-body">
+        <div class="grounded-badge refusal">⚠ Error</div>
+        <div class="gpt-prose" style="color: var(--gpt-accent-red);">
+          <p>${escapeHtml(msg)}</p>
         </div>
       </div>
     `;
@@ -374,19 +379,19 @@ document.addEventListener("DOMContentLoaded", () => {
     scrollToBottom();
   }
 
-  // Markdown Parser (Headers, Code blocks with copy bar, Tables, Citations, Lists)
-  function renderAdvancedMarkdown(text) {
+  // Markdown Parser
+  function renderGptMarkdown(text) {
     if (!text) return "";
     let html = escapeHtml(text);
 
     // Fenced Code Blocks ```lang \n code ```
     html = html.replace(/```([a-zA-Z0-9_\-\+]*)\n([\s\S]*?)```/g, (match, lang, code) => {
-      const l = lang || "code";
+      const l = lang || "text";
       return `
-        <div class="code-block-container">
-          <div class="code-block-header">
+        <div class="code-container">
+          <div class="code-header">
             <span>${l}</span>
-            <button class="copy-code-btn" type="button">Copy code</button>
+            <button class="code-copy-btn" type="button">Copy code</button>
           </div>
           <pre><code>${code.trim()}</code></pre>
         </div>
@@ -397,9 +402,9 @@ document.addEventListener("DOMContentLoaded", () => {
     html = html.replace(/((?:\|[^\n]+\|\r?\n)+)/g, (match) => {
       const lines = match.trim().split("\n");
       if (lines.length >= 2) {
-        let tableHtml = '<table class="markdown-table">';
+        let tableHtml = '<table class="gpt-table">';
         lines.forEach((line, idx) => {
-          if (line.includes("---")) return; // divider
+          if (line.includes("---")) return;
           const cells = line.split("|").filter((c, i, a) => i > 0 && i < a.length - 1);
           if (idx === 0) {
             tableHtml += "<thead><tr>" + cells.map(c => `<th>${c.trim()}</th>`).join("") + "</tr></thead><tbody>";
@@ -425,12 +430,12 @@ document.addEventListener("DOMContentLoaded", () => {
     html = html.replace(/`([^`]+)`/gim, '<code>$1</code>');
 
     // Citation tags [ENG-PAGE-02] or [PAY-102]
-    html = html.replace(/\[((?:ENG-PAGE-\d+|PAY-\d+))\]/g, '<span class="source-card-chip" style="display:inline-flex; padding:1px 6px; font-size:0.75rem; margin:0 2px;">$1</span>');
+    html = html.replace(/\[((?:ENG-PAGE-\d+|PAY-\d+))\]/g, '<span class="citation-chip" style="padding:1px 5px; font-size:0.75rem; margin:0 2px;">$1</span>');
 
     // Markdown Links [title](url)
-    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/gim, '<a href="$2" target="_blank" rel="noopener" style="color: var(--gemini-cyan); text-decoration: underline;">$1</a>');
+    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/gim, '<a href="$2" target="_blank" rel="noopener" style="color: var(--gpt-text-link); text-decoration: underline;">$1</a>');
 
-    // Bullet points (- or *)
+    // Bullet points
     html = html.replace(/^\s*[-*]\s+(.*$)/gim, '<li>$1</li>');
 
     // Paragraphs
@@ -448,8 +453,9 @@ document.addEventListener("DOMContentLoaded", () => {
   function createNewSession() {
     currentSessionId = null;
     chatThread.innerHTML = "";
-    geminiHero.style.display = "block";
+    gptHero.style.display = "block";
     userInput.value = "";
+    updateSendBtnState();
     userInput.focus();
     renderHistoryList();
   }
@@ -457,16 +463,14 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderHistoryList() {
     chatHistoryList.innerHTML = "";
     if (sessions.length === 0) {
-      chatHistoryList.innerHTML = `<div class="history-empty">No previous chats</div>`;
+      chatHistoryList.innerHTML = `<div class="history-empty">No conversations yet</div>`;
       return;
     }
 
     sessions.slice(0, 15).forEach(s => {
       const item = document.createElement("div");
-      item.className = `history-item ${s.id === currentSessionId ? "active" : ""}`;
-      item.innerHTML = `
-        <span class="history-title">${escapeHtml(s.title || "Chat Session")}</span>
-      `;
+      item.className = `history-entry ${s.id === currentSessionId ? "active" : ""}`;
+      item.textContent = s.title || "Conversation";
       item.addEventListener("click", () => {
         loadSession(s.id);
       });
@@ -480,7 +484,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     currentSessionId = s.id;
     chatThread.innerHTML = "";
-    geminiHero.style.display = s.messages.length === 0 ? "block" : "none";
+    gptHero.style.display = s.messages.length === 0 ? "block" : "none";
 
     s.messages.forEach(m => {
       if (m.role === "user") {
@@ -495,7 +499,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function saveSessions() {
-    localStorage.setItem("rag_chat_sessions", JSON.stringify(sessions));
+    localStorage.setItem("gpt_rag_sessions", JSON.stringify(sessions));
   }
 
   function scrollToBottom() {
@@ -524,9 +528,9 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await fetch("/api/health");
       if (res.ok) {
         const h = await res.json();
-        const prov = h.provider === "openrouter" ? "OpenRouter" : h.provider;
+        const prov = h.provider === "openrouter" ? "ChatGPT 4o" : h.provider;
         const model = h.model || "stealth/ox-alpha";
-        activeModelLabel.textContent = `${prov} (${model})`;
+        activeModelLabel.textContent = `${prov} • ${model}`;
       }
     } catch (e) {}
   }
@@ -538,7 +542,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const s = await res.json();
         if (s.total_chunks) statChunks.textContent = s.total_chunks;
         if (s.total_documents) statDocs.textContent = s.total_documents;
-        if (s.vector_dimension) statEngine.textContent = "Qdrant";
       }
     } catch (e) {}
   }
