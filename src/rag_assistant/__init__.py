@@ -18,6 +18,10 @@ from rag_assistant.connectors.jira import (
     MockJiraConnector,
 )
 from rag_assistant.core.models import Chunk, UnifiedDocument
+from rag_assistant.guardrails.service import (
+    GuardrailResult,
+    GuardrailService,
+)
 from rag_assistant.llm.prompts import SYSTEM_PROMPT, format_user_prompt
 from rag_assistant.llm.providers import (
     AnthropicProvider,
@@ -102,6 +106,8 @@ __all__ = [
     "GeminiProvider",
     "OllamaProvider",
     "get_llm_provider",
+    "GuardrailService",
+    "GuardrailResult",
     "RAGAssistant",
     "RAGAnswer",
     "ConfluencePage",

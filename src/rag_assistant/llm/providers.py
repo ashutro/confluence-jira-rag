@@ -11,6 +11,15 @@ import requests
 
 from rag_assistant.config import Settings
 
+COMMON_STOPWORDS = {
+    "what", "where", "when", "which", "who", "whom", "whose", "why", "how",
+    "does", "have", "with", "from", "about", "this", "that", "there", "they",
+    "will", "would", "should", "could", "best", "some", "more", "make", "tell",
+    "give", "show", "find", "know", "help", "please", "into", "onto", "been",
+    "the", "for", "and", "are", "was", "were", "can", "you", "your", "all",
+    "any", "not", "our", "out", "one", "two", "has", "had", "its", "use",
+}
+
 
 class BaseLLMProvider(ABC):
     """Abstract base class for LLM providers."""
@@ -54,6 +63,13 @@ class MockLLMProvider(BaseLLMProvider):
 
         if not sources:
             return "Based on the current Confluence documentation and Jira records, I cannot find information regarding this query."
+
+        # Lexical sanity check on question vs context sources
+        words = re.findall(r"\b[a-zA-Z0-9_-]{3,}\b", question.lower())
+        content_words = [w for w in words if w not in COMMON_STOPWORDS and len(w) >= 4]
+        sources_text = " ".join(s[6] + " " + s[3] + " " + s[2] for s in sources).lower()
+        if content_words and not any(cw in sources_text for cw in content_words):
+            return f"Based on the current Confluence documentation and Jira records, I cannot find information regarding '{question}'."
 
         lines = []
         lines.append("### Summary")

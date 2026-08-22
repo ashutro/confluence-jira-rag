@@ -294,6 +294,7 @@ def retrieve_command(args: argparse.Namespace) -> int:
     source_filter = args.source
     db_path = Path(args.db_path)
     out_format = args.format
+    threshold = args.score_threshold
 
     print("=" * 60)
     print("Context-Grounded Retrieval Engine (Milestone 7)")
@@ -315,6 +316,7 @@ def retrieve_command(args: argparse.Namespace) -> int:
         query=query,
         top_k=top_k,
         filter_source=source_filter,
+        score_threshold=threshold,
     )
 
     if not context.chunks:
@@ -402,9 +404,10 @@ def ask_command(args: argparse.Namespace) -> int:
     db_path = args.db_path
     collection = args.collection
     use_mock = args.mock
+    threshold = args.score_threshold
 
     print("=" * 60)
-    print("Enterprise RAG Assistant (Milestone 8)")
+    print("Enterprise RAG Assistant (Milestones 8 & 9)")
     print("=" * 60)
     print(f"Question: \"{question}\"")
     if source_filter:
@@ -418,11 +421,13 @@ def ask_command(args: argparse.Namespace) -> int:
             use_mock=use_mock,
             provider_name=provider,
             model_name=model,
+            score_threshold=threshold,
         )
         answer = assistant.ask(
             question=question,
             top_k=top_k,
             filter_source=source_filter,
+            score_threshold=threshold,
         )
 
         if args.format == "json":
@@ -431,7 +436,8 @@ def ask_command(args: argparse.Namespace) -> int:
 
         print(f"\n{answer.answer}\n")
         print("-" * 60)
-        print(f"Provider: {answer.provider} ({answer.model_name}) | Latency: {answer.execution_time_ms:.1f}ms")
+        status_note = "Grounded & Verified" if answer.guardrail and answer.guardrail.is_grounded else "Guardrail Fallback"
+        print(f"Provider: {answer.provider} ({answer.model_name}) | Status: {status_note} | Latency: {answer.execution_time_ms:.1f}ms")
         print("=" * 60)
         return 0
 
@@ -447,6 +453,7 @@ def chat_command(args: argparse.Namespace) -> int:
     provider = args.provider
     model = args.model
     use_mock = args.mock
+    threshold = args.score_threshold
 
     print("=" * 60)
     print("🤖 Confluence + Jira RAG Interactive Assistant")
@@ -462,6 +469,7 @@ def chat_command(args: argparse.Namespace) -> int:
             use_mock=use_mock,
             provider_name=provider,
             model_name=model,
+            score_threshold=threshold,
         )
 
         while True:
@@ -477,8 +485,8 @@ def chat_command(args: argparse.Namespace) -> int:
                 print("Goodbye!")
                 break
 
-            print("\nSearching knowledge base & synthesizing answer...")
-            answer = assistant.ask(question=question, top_k=3)
+            print("\nSearching knowledge base & applying guardrails...")
+            answer = assistant.ask(question=question, top_k=3, score_threshold=threshold)
             print("\n" + "=" * 60)
             print(answer.answer)
             print("=" * 60)
@@ -550,6 +558,84 @@ def evaluate_qa_command(args: argparse.Namespace) -> int:
     print(f"  Total Queries:      {n}")
     print(f"  Passed Queries:     {passed_count} ({accuracy:.1f}%)")
     print(f"  Average Latency:    {avg_latency:.1f}ms")
+    print("=" * 60)
+    return 0
+
+
+def test_guardrails_command(args: argparse.Namespace) -> int:
+    """Run hallucination and guardrail evaluation across in-domain and out-of-domain queries."""
+    db_path = args.db_path
+    collection = args.collection
+    use_mock = args.mock
+    threshold = args.score_threshold
+
+    print("=" * 60)
+    print("Guardrail & Hallucination Defense Evaluation (Milestone 9)")
+    print("=" * 60)
+
+    test_cases = [
+        # In-Domain queries (must answer with citations)
+        {
+            "type": "in_domain",
+            "query": "What is the runbook for webhook 504 gateway timeouts?",
+            "expected_refusal": False,
+        },
+        {
+            "type": "in_domain",
+            "query": "What are the rate limit tiers for merchants?",
+            "expected_refusal": False,
+        },
+        # Adversarial / Out-of-Domain queries (must refuse and not hallucinate)
+        {
+            "type": "out_of_domain",
+            "query": "What is the best recipe for chocolate chip cookies?",
+            "expected_refusal": True,
+        },
+        {
+            "type": "out_of_domain",
+            "query": "Who was the captain of the 1998 French World Cup football team?",
+            "expected_refusal": True,
+        },
+        {
+            "type": "out_of_domain",
+            "query": "What is the secret flight schedule to the Moon?",
+            "expected_refusal": True,
+        },
+    ]
+
+    assistant = RAGAssistant.create(
+        db_path=db_path,
+        collection_name=collection,
+        use_mock=use_mock,
+        score_threshold=threshold,
+    )
+
+    passed = 0
+    print("Running Guardrail Test Scenarios:\n")
+    for idx, tc in enumerate(test_cases, start=1):
+        q = tc["query"]
+        q_type = tc["type"].upper()
+        ans = assistant.ask(question=q, top_k=3, score_threshold=threshold)
+
+        is_refusal = (
+            "cannot find information" in ans.answer.lower()
+            or "do not have enough information" in ans.answer.lower()
+            or ans.provider == "guardrail_shortcircuit"
+        )
+        test_passed = (is_refusal == tc["expected_refusal"])
+        if test_passed:
+            passed += 1
+
+        icon = "PASS" if test_passed else "FAIL"
+        print(f"[{icon}] Test {idx} ({q_type})")
+        print(f"  Query: \"{q}\"")
+        print(f"  Expected Refusal: {tc['expected_refusal']} | Actual Refusal: {is_refusal}")
+        print(f"  Confidence Score: {ans.guardrail.confidence_score if ans.guardrail else 0.0:.4f}")
+        print(f"  Snippet: {ans.answer[:110].replace(chr(10), ' ')}...\n")
+
+    rate = (passed / len(test_cases)) * 100.0
+    print("=" * 60)
+    print(f"Guardrail Protection Rate: {passed}/{len(test_cases)} ({rate:.1f}%)")
     print("=" * 60)
     return 0
 
@@ -789,6 +875,12 @@ def main() -> None:
         help="Local Qdrant database directory.",
     )
     retrieve_parser.add_argument(
+        "--score-threshold",
+        type=float,
+        default=None,
+        help="Minimum score threshold.",
+    )
+    retrieve_parser.add_argument(
         "--format",
         "-f",
         type=str,
@@ -833,7 +925,7 @@ def main() -> None:
         help="Use offline mock embedder.",
     )
 
-    # ask subcommand (Milestone 8)
+    # ask subcommand
     ask_parser = subparsers.add_parser(
         "ask",
         help="Ask a question and receive a grounded synthesized answer with citations.",
@@ -871,6 +963,12 @@ def main() -> None:
         help="Filter context by source type.",
     )
     ask_parser.add_argument(
+        "--score-threshold",
+        type=float,
+        default=0.20,
+        help="Minimum confidence score threshold.",
+    )
+    ask_parser.add_argument(
         "--collection",
         "-c",
         type=str,
@@ -897,7 +995,7 @@ def main() -> None:
         help="Use offline mock mode (MockEmbedder + MockLLMProvider).",
     )
 
-    # chat subcommand (Milestone 8)
+    # chat subcommand
     chat_parser = subparsers.add_parser(
         "chat",
         help="Start an interactive chat session with the RAG assistant.",
@@ -914,6 +1012,12 @@ def main() -> None:
         type=str,
         default=None,
         help="Model name.",
+    )
+    chat_parser.add_argument(
+        "--score-threshold",
+        type=float,
+        default=0.20,
+        help="Minimum confidence score threshold.",
     )
     chat_parser.add_argument(
         "--collection",
@@ -934,7 +1038,7 @@ def main() -> None:
         help="Use offline mock mode.",
     )
 
-    # evaluate-qa subcommand (Milestone 8)
+    # evaluate-qa subcommand
     eval_qa_parser = subparsers.add_parser(
         "evaluate-qa",
         help="Evaluate end-to-end question answering against benchmark dataset.",
@@ -960,6 +1064,36 @@ def main() -> None:
         help="Local Qdrant database directory.",
     )
     eval_qa_parser.add_argument(
+        "--mock",
+        action="store_true",
+        help="Use offline mock mode.",
+    )
+
+    # test-guardrails subcommand (Milestone 9)
+    guardrail_parser = subparsers.add_parser(
+        "test-guardrails",
+        help="Run hallucination tests across in-domain and out-of-domain questions.",
+    )
+    guardrail_parser.add_argument(
+        "--score-threshold",
+        type=float,
+        default=0.20,
+        help="Confidence score threshold for refusal.",
+    )
+    guardrail_parser.add_argument(
+        "--collection",
+        "-c",
+        type=str,
+        default="knowledge_base",
+        help="Qdrant collection name.",
+    )
+    guardrail_parser.add_argument(
+        "--db-path",
+        type=str,
+        default="data/qdrant_db",
+        help="Local Qdrant database directory.",
+    )
+    guardrail_parser.add_argument(
         "--mock",
         action="store_true",
         help="Use offline mock mode.",
@@ -996,6 +1130,9 @@ def main() -> None:
         sys.exit(exit_code)
     elif args.command == "evaluate-qa":
         exit_code = evaluate_qa_command(args)
+        sys.exit(exit_code)
+    elif args.command == "test-guardrails":
+        exit_code = test_guardrails_command(args)
         sys.exit(exit_code)
     else:
         parser.print_help()

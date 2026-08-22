@@ -1,6 +1,6 @@
 # Confluence + Jira RAG Assistant
 
-Internal knowledge assistant that answers questions from Confluence documentation pages and Jira issues using Qdrant Vector Database and LLM synthesis.
+Enterprise AI knowledge assistant that answers questions from Confluence documentation pages and Jira issues using Qdrant Vector Database, LLM synthesis, and hallucination-preventing guardrails.
 
 ```text
 +-----------------------+     +-----------------------+
@@ -29,73 +29,18 @@ Internal knowledge assistant that answers questions from Confluence documentatio
             |
             v
 +-----------------------------------------------------+
-| LLM Q&A Synthesis (OpenAI / Anthropic / Gemini)     |
+| Guardrails & Citation Verifier                      |
 +-----------------------------------------------------+
-```
-
-## Project Structure
-
-```text
-confluence-jira-rag/
-  data/
-    sample/             # Milestone 2 sample dataset (Confluence & Jira)
-      confluence/       # Confluence pages (Markdown & pages.json)
-      jira/             # Jira issues (issues.json)
-      queries.json      # Benchmark evaluation questions
-    raw/                # Exported raw source data
-      confluence/       # Confluence connector output (pages.json)
-      jira/             # Jira connector output (issues.json)
-    processed/          # Normalized & chunked datasets ready for RAG
-      normalized_documents.json # UnifiedDocument collection
-      chunks.json       # Context-enriched text chunks
-    qdrant_db/          # Local on-disk Qdrant vector database
-  docs/                 # Notes and project documentation
-    milestone-1-setup.md
-    milestone-2-atlassian-setup.md
-    milestone-3-confluence-connector.md
-    milestone-4-jira-connector.md
-    milestone-5-normalization-chunking.md
-    milestone-6-vector-database-qdrant.md
-    milestone-7-retrieval.md
-    milestone-8-llm-assistant.md
-  src/
-    rag_assistant/      # Python package
-      config.py         # Environment configuration
-      cli.py            # Command Line Interface
-      assistant.py      # End-to-end RAG assistant coordinator
-      sample_data.py    # Sample dataset loaders
-      core/
-        models.py       # UnifiedDocument & Chunk models
-      connectors/       # External source connectors
-        confluence.py   # Confluence REST API connector
-        html_cleaner.py # XHTML storage format cleaner
-        jira.py         # Jira REST API connector
-        adf_cleaner.py  # Jira Atlassian Document Format cleaner
-      processing/       # Normalization & Chunking
-        normalizer.py   # Document normalizer
-        chunker.py      # Hierarchical Markdown chunker
-      vector_store/     # Embeddings & Vector Database (Milestone 6)
-        embeddings.py   # FastEmbed & MockEmbedder
-        qdrant.py       # QdrantVectorStore & SearchResult
-      retrieval/        # Retrieval Engine & Evaluation (Milestone 7)
-        retriever.py    # RAGRetriever & RetrievalContext
-        evaluator.py    # RetrievalEvaluator & BenchmarkReport
-      llm/              # LLM Generation & Prompts (Milestone 8)
-        prompts.py      # System prompts & grounding templates
-        providers.py    # OpenAI, Anthropic, Gemini, Ollama, Mock providers
-  tests/                # Automated tests
-    test_sample_data.py
-    test_confluence_connector.py
-    test_jira_connector.py
-    test_normalizer_and_chunker.py
-    test_vector_store.py
-    test_retrieval.py
-    test_llm_and_assistant.py
+            |
+            v
++-----------------------------------------------------+
+| Grounded Answer Synthesis (OpenAI/Anthropic/Gemini) |
++-----------------------------------------------------+
 ```
 
 ## Local Setup
 
-Create and activate the virtual environment:
+Create and activate virtual environment:
 
 ```bash
 python3 -m venv .venv
@@ -104,7 +49,7 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-Run automated tests (47/47 passing):
+Run test suite (54/54 tests passing):
 
 ```bash
 pytest tests/ -v
@@ -130,16 +75,19 @@ rag-assistant normalize-chunk --mock
 rag-assistant index-qdrant --mock --db-path data/qdrant_db --recreate
 ```
 
-### 4. Ask Questions with the RAG Assistant (Milestone 8)
+### 4. Ask Questions with Guardrails & Citations (Milestones 8 & 9)
 ```bash
-# Ask a single question:
+# Ask a question (in-domain):
 rag-assistant ask "What is the runbook for webhook 504 gateway timeouts?" --mock
+
+# Ask an out-of-domain question (guaranteed honest refusal):
+rag-assistant ask "What is the recipe for chocolate chip cookies?" --mock
 
 # Interactive terminal chat:
 rag-assistant chat --mock
 
-# Run end-to-end benchmark evaluation:
-rag-assistant evaluate-qa --mock
+# Run guardrail & hallucination defense tests:
+rag-assistant test-guardrails --mock
 ```
 
 ---
@@ -154,3 +102,4 @@ rag-assistant evaluate-qa --mock
 - [x] **Milestone 6**: Vector Database (Qdrant) & Semantic Search
 - [x] **Milestone 7**: Context-Grounded Retrieval Engine & Benchmark Evaluation
 - [x] **Milestone 8**: LLM Q&A Assistant, Multi-Provider Support & Interactive Chat CLI
+- [x] **Milestone 9**: Citations, Source Links, Confidence Thresholds & Guardrails
