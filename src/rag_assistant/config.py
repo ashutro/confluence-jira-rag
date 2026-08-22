@@ -41,6 +41,10 @@ class Settings:
     qdrant_path: str = "data/qdrant_db"
     qdrant_collection_name: str = "knowledge_base"
     embedding_model: str = "BAAI/bge-small-en-v1.5"
+    openrouter_api_key: Optional[str] = None
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_model: str = "stealth/ox-alpha"
+    openrouter_reasoning: bool = True
 
     @classmethod
     def from_env(cls, env_file: Optional[Path | str] = None) -> Settings:
@@ -70,6 +74,11 @@ class Settings:
         q_col = os.getenv("QDRANT_COLLECTION_NAME", "knowledge_base").strip()
         emb_model = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5").strip()
 
+        openrouter_key = os.getenv("OPENROUTER_API_KEY", "").strip() or None
+        openrouter_base = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1").strip().rstrip("/")
+        openrouter_m = os.getenv("OPENROUTER_MODEL", "stealth/ox-alpha").strip()
+        openrouter_reas = os.getenv("OPENROUTER_REASONING", "true").lower() in ("true", "1", "yes")
+
         return cls(
             confluence_base_url=base_url,
             confluence_email=email,
@@ -84,6 +93,10 @@ class Settings:
             qdrant_path=q_path,
             qdrant_collection_name=q_col,
             embedding_model=emb_model,
+            openrouter_api_key=openrouter_key,
+            openrouter_base_url=openrouter_base,
+            openrouter_model=openrouter_m,
+            openrouter_reasoning=openrouter_reas,
         )
 
     def validate_confluence(self) -> None:

@@ -30,6 +30,7 @@ from rag_assistant.llm.providers import (
     MockLLMProvider,
     OllamaProvider,
     OpenAIProvider,
+    OpenRouterProvider,
     get_llm_provider,
 )
 from rag_assistant.processing.chunker import MarkdownChunker
@@ -66,6 +67,7 @@ from rag_assistant.vector_store.qdrant import (
     QdrantVectorStore,
     SearchResult,
 )
+from rag_assistant.web.app import create_app
 
 __version__ = "0.1.0"
 __all__ = [
@@ -102,6 +104,7 @@ __all__ = [
     "BaseLLMProvider",
     "MockLLMProvider",
     "OpenAIProvider",
+    "OpenRouterProvider",
     "AnthropicProvider",
     "GeminiProvider",
     "OllamaProvider",
@@ -110,6 +113,7 @@ __all__ = [
     "GuardrailResult",
     "RAGAssistant",
     "RAGAnswer",
+    "create_app",
     "ConfluencePage",
     "JiraIssue",
     "BenchmarkQuery",

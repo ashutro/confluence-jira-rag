@@ -640,6 +640,46 @@ def test_guardrails_command(args: argparse.Namespace) -> int:
     return 0
 
 
+def serve_command(args: argparse.Namespace) -> int:
+    """Launch the Web UI server with Uvicorn."""
+    import uvicorn
+    from rag_assistant.web.app import create_app
+
+    host = args.host
+    port = args.port
+    db_path = args.db_path
+    collection = args.collection
+    use_mock = args.mock
+    provider = args.provider
+    model = args.model
+    threshold = args.score_threshold
+
+    print("=" * 60)
+    print("🚀 Confluence + Jira RAG Assistant Web Server (Milestone 10)")
+    print("=" * 60)
+    print(f"🌐 Server URL:          http://{host}:{port}")
+    print(f"📊 Vector Storage:      {db_path} ('{collection}')")
+    print(f"🤖 LLM Generation Mode: {'Offline Mock' if use_mock else (provider or 'OpenAI')}")
+    print(f"🛡️ Guardrail Threshold: {threshold:.2f}")
+    print("=" * 60 + "\n")
+
+    app = create_app(
+        db_path=db_path,
+        collection_name=collection,
+        use_mock=use_mock,
+        provider_name=provider,
+        model_name=model,
+        score_threshold=threshold,
+    )
+
+    try:
+        uvicorn.run(app, host=host, port=port, log_level="info")
+        return 0
+    except Exception as e:
+        print(f"\n[Error] Web server error: {e}", file=sys.stderr)
+        return 1
+
+
 def main() -> None:
     """Main CLI entrypoint."""
     parser = argparse.ArgumentParser(
@@ -938,7 +978,7 @@ def main() -> None:
     ask_parser.add_argument(
         "--provider",
         type=str,
-        choices=["openai", "anthropic", "gemini", "ollama", "mock"],
+        choices=["openrouter", "openai", "anthropic", "gemini", "ollama", "mock"],
         default=None,
         help="LLM provider name.",
     )
@@ -1003,7 +1043,7 @@ def main() -> None:
     chat_parser.add_argument(
         "--provider",
         type=str,
-        choices=["openai", "anthropic", "gemini", "ollama", "mock"],
+        choices=["openrouter", "openai", "anthropic", "gemini", "ollama", "mock"],
         default=None,
         help="LLM provider name.",
     )
@@ -1069,7 +1109,7 @@ def main() -> None:
         help="Use offline mock mode.",
     )
 
-    # test-guardrails subcommand (Milestone 9)
+    # test-guardrails subcommand
     guardrail_parser = subparsers.add_parser(
         "test-guardrails",
         help="Run hallucination tests across in-domain and out-of-domain questions.",
@@ -1097,6 +1137,62 @@ def main() -> None:
         "--mock",
         action="store_true",
         help="Use offline mock mode.",
+    )
+
+    # serve subcommand (Milestone 10)
+    serve_parser = subparsers.add_parser(
+        "serve",
+        help="Start the interactive Web UI and FastAPI server.",
+    )
+    serve_parser.add_argument(
+        "--host",
+        type=str,
+        default="127.0.0.1",
+        help="Bind host address.",
+    )
+    serve_parser.add_argument(
+        "--port",
+        "-p",
+        type=int,
+        default=8000,
+        help="Bind port number.",
+    )
+    serve_parser.add_argument(
+        "--provider",
+        type=str,
+        choices=["openrouter", "openai", "anthropic", "gemini", "ollama", "mock"],
+        default=None,
+        help="LLM provider name.",
+    )
+    serve_parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="Model name.",
+    )
+    serve_parser.add_argument(
+        "--score-threshold",
+        type=float,
+        default=0.20,
+        help="Confidence score threshold.",
+    )
+    serve_parser.add_argument(
+        "--collection",
+        "-c",
+        type=str,
+        default="knowledge_base",
+        help="Qdrant collection name.",
+    )
+    serve_parser.add_argument(
+        "--db-path",
+        type=str,
+        default="data/qdrant_db",
+        help="Local Qdrant database directory.",
+    )
+    serve_parser.add_argument(
+        "--mock",
+        action="store_true",
+        help="Run web server in offline mock mode.",
     )
 
     args = parser.parse_args()
@@ -1133,6 +1229,9 @@ def main() -> None:
         sys.exit(exit_code)
     elif args.command == "test-guardrails":
         exit_code = test_guardrails_command(args)
+        sys.exit(exit_code)
+    elif args.command == "serve":
+        exit_code = serve_command(args)
         sys.exit(exit_code)
     else:
         parser.print_help()

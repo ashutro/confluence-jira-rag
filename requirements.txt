@@ -9,6 +9,13 @@ beautifulsoup4>=4.12.0
 qdrant-client>=1.9.0
 fastembed>=0.2.7
 
+# LLM and Multi-Provider SDKs
+openai>=1.0.0
+
+# Web UI Server (Milestone 10)
+fastapi>=0.110.0
+uvicorn>=0.29.0
+
 # Testing
 pytest>=8.0.0
 responses>=0.25.0

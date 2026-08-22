@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confluence + Jira Enterprise RAG Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Left Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h2>RAG Assistant</h2>
+          <span>Confluence &bull; Jira</span>
+        </div>
+      </div>
+
+      <!-- Knowledge Base Stats Widget -->
+      <div class="sidebar-section">
+        <div class="section-header">Knowledge Base</div>
+        <div class="stats-card">
+          <div class="stat-item">
+            <span class="stat-num" id="stat-chunks">77</span>
+            <span class="stat-label">Vector Chunks</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-num" id="stat-docs">13</span>
+            <span class="stat-label">Documents</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-num" id="stat-engine">Qdrant</span>
+            <span class="stat-label">Vector DB</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Knowledge Filter -->
+      <div class="sidebar-section">
+        <div class="section-header">Source Filter</div>
+        <div class="filter-group">
+          <button class="filter-chip active" data-source="">
+            <span class="chip-dot all"></span> All Sources
+          </button>
+          <button class="filter-chip" data-source="confluence">
+            <span class="chip-dot conf"></span> Confluence Only
+          </button>
+          <button class="filter-chip" data-source="jira">
+            <span class="chip-dot jira"></span> Jira Issues Only
+          </button>
+        </div>
+      </div>
+
+      <!-- Guardrail Threshold Slider -->
+      <div class="sidebar-section">
+        <div class="section-header flex-between">
+          <span>Confidence Threshold</span>
+          <span class="slider-value" id="threshold-val">0.20</span>
+        </div>
+        <div class="slider-container">
+          <input type="range" id="threshold-slider" min="0" max="1" step="0.05" value="0.20">
+          <div class="slider-ticks">
+            <span>0.00 (Loose)</span>
+            <span>0.50</span>
+            <span>1.00 (Strict)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Questions (Sample Queries) -->
+      <div class="sidebar-section samples-section">
+        <div class="section-header">Suggested Questions</div>
+        <div class="sample-list" id="sample-list">
+          <button class="sample-btn" data-query="What is the runbook for webhook 504 gateway timeouts?">
+            <span class="sample-icon">🚨</span>
+            <span class="sample-text">Webhook 504 Triage Runbook</span>
+          </button>
+          <button class="sample-btn" data-query="What are the API rate limits for each merchant tier?">
+            <span class="sample-icon">⚡</span>
+            <span class="sample-text">API Rate Limit Tiers</span>
+          </button>
+          <button class="sample-btn" data-query="How long do we retain customer PII and financial transaction records under our GDPR policy?">
+            <span class="sample-icon">🛡️</span>
+            <span class="sample-text">GDPR Data Retention Policy</span>
+          </button>
+          <button class="sample-btn" data-query="Why does docker compose crash on Apple Silicon M-series Macs and what is the fix?">
+            <span class="sample-icon">🍎</span>
+            <span class="sample-text">Apple Silicon Docker Fix</span>
+          </button>
+          <button class="sample-btn" data-query="What is the status of the intermittent 504 Gateway Timeout bug during batch settlement?">
+            <span class="sample-icon">🐛</span>
+            <span class="sample-text">Batch Settlement Bug [PAY-103]</span>
+          </button>
+          <button class="sample-btn" data-query="What caused the database connection pool starvation during Black Friday and how was it fixed?">
+            <span class="sample-icon">📈</span>
+            <span class="sample-text">Black Friday DB Starvation Postmortem</span>
+          </button>
+          <button class="sample-btn adversarial" data-query="What is the recipe for baking chocolate chip cookies?">
+            <span class="sample-icon">🍪</span>
+            <span class="sample-text">Guardrail Test (Out of Domain)</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <button id="clear-chat-btn" class="secondary-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+          Clear Chat
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Chat Workspace -->
+    <main class="main-content">
+      <!-- Topbar Header -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title">Enterprise Knowledge Assistant</h1>
+          <span class="active-source-badge" id="source-badge">All Knowledge</span>
+        </div>
+        <div class="topbar-right">
+          <div class="provider-pill">
+            <span class="status-indicator live"></span>
+            <span id="model-name">Mock Factual LLM (Offline)</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Message Viewport -->
+      <div class="chat-viewport" id="chat-viewport">
+        <!-- Welcome banner -->
+        <div class="welcome-card" id="welcome-card">
+          <div class="welcome-icon">⚡</div>
+          <h3>Welcome to CloudScale RAG Assistant</h3>
+          <p>
+            Connected to <strong>Confluence Engineering Space (<code>ENG</code>)</strong> and <strong>Jira Issue Tracker (<code>PAY</code>)</strong>. Ask questions regarding architecture, runbooks, policies, or bug fixes with verifiable citations.
+          </p>
+          <div class="features-grid">
+            <div class="feature-box">
+              <div class="feature-title">🎯 Semantic Search & Hybrid Re-Rank</div>
+              <div class="feature-desc">Qdrant vector search boosted by exact entity matching.</div>
+            </div>
+            <div class="feature-box">
+              <div class="feature-title">🛡️ Strict Guardrails & Citations</div>
+              <div class="feature-desc">Automated citation verification & anti-hallucination defense.</div>
+            </div>
+            <div class="feature-box">
+              <div class="feature-title">🔗 Verifiable Source Links</div>
+              <div class="feature-desc">Every claim links to original Confluence pages and Jira tickets.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="messages-container" id="messages-container"></div>
+      </div>
+
+      <!-- Input Area Dock -->
+      <div class="input-dock">
+        <form class="input-form" id="chat-form">
+          <div class="input-wrapper">
+            <textarea
+              id="user-input"
+              placeholder="Ask about runbooks, architectures, rate limits, or Jira tickets..."
+              rows="1"
+              autocomplete="off"
+            ></textarea>
+            <button type="submit" id="send-btn" class="send-btn" title="Send Question (Enter)">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+              </svg>
+            </button>
+          </div>
+        </form>
+        <div class="dock-footer">
+          <span><strong>Shift + Enter</strong> for newline &bull; Answers grounded strictly on Confluence & Jira knowledge base</span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

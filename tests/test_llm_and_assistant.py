@@ -80,6 +80,65 @@ def test_get_llm_provider_factory():
         get_llm_provider("unknown-provider-xyz")
 
 
+def test_openrouter_provider_initialization():
+    from rag_assistant.llm.providers import OpenRouterProvider
+
+    # Missing API key raises error
+    with pytest.raises(ValueError, match="OPENROUTER_API_KEY is not set"):
+        OpenRouterProvider(api_key="")
+
+    provider = OpenRouterProvider(
+        api_key="test-sk-openrouter-key",
+        model_name="stealth/ox-alpha",
+        base_url="https://openrouter.ai/api/v1",
+        enable_reasoning=True,
+    )
+    assert provider.name == "openrouter"
+    assert provider.model_name == "stealth/ox-alpha"
+    assert provider.base_url == "https://openrouter.ai/api/v1"
+    assert provider.enable_reasoning is True
+
+
+def test_openrouter_provider_with_mock_client(monkeypatch):
+    from unittest.mock import MagicMock
+    from rag_assistant.llm.providers import OpenRouterProvider
+
+    provider = OpenRouterProvider(
+        api_key="test-key",
+        model_name="stealth/ox-alpha",
+        enable_reasoning=True,
+    )
+
+    # Mock OpenAI client
+    mock_client = MagicMock()
+    mock_msg = MagicMock()
+    mock_msg.content = "There are 3 r's in strawberry."
+    mock_msg.reasoning_details = {"thinking": "Count: s-t-r-a-w-b-e-r-r-y -> r at index 2, 7, 8"}
+    mock_choice = MagicMock()
+    mock_choice.message = mock_msg
+    mock_response = MagicMock()
+    mock_response.choices = [mock_choice]
+    mock_client.chat.completions.create.return_value = mock_response
+
+    provider.client = mock_client
+
+    answer = provider.generate_answer(
+        system_prompt="You are a factual assistant.",
+        user_prompt="How many r's are in the word 'strawberry'?",
+    )
+
+    assert "3 r's" in answer
+    assert provider.last_reasoning_details is not None
+    assert "thinking" in provider.last_reasoning_details
+
+    # Verify reasoning parameter was passed
+    mock_client.chat.completions.create.assert_called_once()
+    call_kwargs = mock_client.chat.completions.create.call_args.kwargs
+    assert call_kwargs["extra_body"] == {"reasoning": {"enabled": True}}
+    assert call_kwargs["model"] == "stealth/ox-alpha"
+
+
+
 def test_rag_assistant_end_to_end(assistant: RAGAssistant):
     q = "What should an on-call engineer do when the webhook worker experiences 504 Gateway Timeouts?"
     resp = assistant.ask(question=q, top_k=3)

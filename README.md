@@ -1,6 +1,6 @@
 # Confluence + Jira RAG Assistant
 
-Enterprise AI knowledge assistant that answers questions from Confluence documentation pages and Jira issues using Qdrant Vector Database, LLM synthesis, and hallucination-preventing guardrails.
+Enterprise AI knowledge assistant that answers questions from Confluence documentation pages and Jira issues using Qdrant Vector Database, LLM synthesis, hallucination-preventing guardrails, and an interactive Web UI.
 
 ```text
 +-----------------------+     +-----------------------+
@@ -36,6 +36,11 @@ Enterprise AI knowledge assistant that answers questions from Confluence documen
 +-----------------------------------------------------+
 | Grounded Answer Synthesis (OpenAI/Anthropic/Gemini) |
 +-----------------------------------------------------+
+            |
+            v
++-----------------------------------------------------+
+| Interactive Web UI & CLI (FastAPI + Modern Web App) |
++-----------------------------------------------------+
 ```
 
 ## Local Setup
@@ -49,7 +54,7 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-Run test suite (54/54 tests passing):
+Run test suite (61/61 tests passing):
 
 ```bash
 pytest tests/ -v
@@ -75,18 +80,21 @@ rag-assistant normalize-chunk --mock
 rag-assistant index-qdrant --mock --db-path data/qdrant_db --recreate
 ```
 
-### 4. Ask Questions with Guardrails & Citations (Milestones 8 & 9)
+### 4. Interactive Web Interface (Milestone 10)
 ```bash
-# Ask a question (in-domain):
-rag-assistant ask "What is the runbook for webhook 504 gateway timeouts?" --mock
+rag-assistant serve --host 127.0.0.1 --port 8000 --mock
+```
+Open **`http://localhost:8000`** in your browser.
 
-# Ask an out-of-domain question (guaranteed honest refusal):
-rag-assistant ask "What is the recipe for chocolate chip cookies?" --mock
+### 5. CLI Interactions (Milestones 8 & 9)
+```bash
+# Ask a question:
+rag-assistant ask "What is the runbook for webhook 504 gateway timeouts?" --mock
 
 # Interactive terminal chat:
 rag-assistant chat --mock
 
-# Run guardrail & hallucination defense tests:
+# Guardrail & hallucination defense tests:
 rag-assistant test-guardrails --mock
 ```
 
@@ -103,3 +111,4 @@ rag-assistant test-guardrails --mock
 - [x] **Milestone 7**: Context-Grounded Retrieval Engine & Benchmark Evaluation
 - [x] **Milestone 8**: LLM Q&A Assistant, Multi-Provider Support & Interactive Chat CLI
 - [x] **Milestone 9**: Citations, Source Links, Confidence Thresholds & Guardrails
+- [x] **Milestone 10**: Interactive Web UI & FastAPI Server

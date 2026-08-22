@@ -291,6 +291,97 @@ class OllamaProvider(BaseLLMProvider):
         return str(data["message"]["content"])
 
 
+class OpenRouterProvider(BaseLLMProvider):
+    """OpenRouter API provider with reasoning support (e.g. stealth/ox-alpha, deepseek/deepseek-r1)."""
+
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        base_url: str = "https://openrouter.ai/api/v1",
+        model_name: str = "stealth/ox-alpha",
+        enable_reasoning: bool = True,
+    ) -> None:
+        self.name = "openrouter"
+        self.model_name = model_name
+        self.base_url = base_url.rstrip("/")
+        self.enable_reasoning = enable_reasoning
+        self.api_key = api_key or os.getenv("OPENROUTER_API_KEY", "").strip()
+        if not self.api_key:
+            raise ValueError("OPENROUTER_API_KEY is not set. Please set it in .env or choose `--mock`.")
+
+        self.last_reasoning_details: Optional[Any] = None
+
+        # Initialize OpenAI client with OpenRouter base URL
+        try:
+            from openai import OpenAI
+            self.client = OpenAI(
+                base_url=self.base_url,
+                api_key=self.api_key,
+            )
+        except Exception:
+            self.client = None
+
+    def generate_answer(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float = 0.1,
+    ) -> str:
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        return self.generate_with_messages(messages, temperature=temperature)
+
+    def generate_with_messages(
+        self,
+        messages: List[Dict[str, Any]],
+        temperature: float = 0.1,
+    ) -> str:
+        """Send multi-turn or single-turn messages to OpenRouter with reasoning enabled."""
+        extra_body = {"reasoning": {"enabled": True}} if self.enable_reasoning else None
+
+        if self.client:
+            create_kwargs: Dict[str, Any] = {
+                "model": self.model_name,
+                "messages": messages,
+                "temperature": temperature,
+            }
+            if extra_body:
+                create_kwargs["extra_body"] = extra_body
+
+            response = self.client.chat.completions.create(**create_kwargs)
+            msg = response.choices[0].message
+            self.last_reasoning_details = getattr(msg, "reasoning_details", None)
+            return str(msg.content or "")
+        else:
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/ashutro/confluence-jira-rag",
+                "X-Title": "Confluence-Jira-RAG",
+            }
+            payload: Dict[str, Any] = {
+                "model": self.model_name,
+                "temperature": temperature,
+                "messages": messages,
+            }
+            if extra_body:
+                payload.update(extra_body)
+
+            resp = requests.post(
+                f"{self.base_url}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=120,
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            msg_dict = data["choices"][0]["message"]
+            self.last_reasoning_details = msg_dict.get("reasoning_details")
+            return str(msg_dict.get("content", ""))
+
+
 def get_llm_provider(
     provider_name: Optional[str] = None,
     model_name: Optional[str] = None,
@@ -300,8 +391,30 @@ def get_llm_provider(
     if use_mock or provider_name == "mock":
         return MockLLMProvider(model_name=model_name or "mock-gpt-4o")
 
-    p = (provider_name or "openai").lower()
-    if p == "openai":
+    # Auto-detect OpenRouter if explicit or if OPENROUTER_API_KEY is configured
+    p = (provider_name or os.getenv("DEFAULT_LLM_PROVIDER", "")).lower()
+    if not p:
+        if os.getenv("OPENROUTER_API_KEY"):
+            p = "openrouter"
+        elif os.getenv("OPENAI_API_KEY"):
+            p = "openai"
+        elif os.getenv("ANTHROPIC_API_KEY"):
+            p = "anthropic"
+        elif os.getenv("GEMINI_API_KEY"):
+            p = "gemini"
+        else:
+            p = "mock"
+
+    if p in ("openrouter", "stealth", "ox-alpha"):
+        base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        default_m = os.getenv("OPENROUTER_MODEL", "stealth/ox-alpha")
+        enable_reasoning = os.getenv("OPENROUTER_REASONING", "true").lower() in ("true", "1", "yes")
+        return OpenRouterProvider(
+            base_url=base_url,
+            model_name=model_name or default_m,
+            enable_reasoning=enable_reasoning,
+        )
+    elif p == "openai":
         return OpenAIProvider(model_name=model_name or "gpt-4o")
     elif p == "anthropic":
         return AnthropicProvider(model_name=model_name or "claude-3-5-sonnet-20241022")
@@ -309,5 +422,8 @@ def get_llm_provider(
         return GeminiProvider(model_name=model_name or "gemini-1.5-flash")
     elif p == "ollama":
         return OllamaProvider(model_name=model_name or "llama3")
+    elif p == "mock":
+        return MockLLMProvider(model_name=model_name or "mock-gpt-4o")
     else:
-        raise ValueError(f"Unknown LLM provider: '{provider_name}'. Supported: openai, anthropic, gemini, ollama, mock.")
+        raise ValueError(f"Unknown LLM provider: '{provider_name}'. Supported: openrouter, openai, anthropic, gemini, ollama, mock.")
+
