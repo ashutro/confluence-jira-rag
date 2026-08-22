@@ -35,6 +35,7 @@ class Settings:
     jira_base_url: Optional[str] = None
     jira_email: Optional[str] = None
     jira_api_token: Optional[str] = None
+    jira_project_key: Optional[str] = None
 
     @classmethod
     def from_env(cls, env_file: Optional[Path | str] = None) -> Settings:
@@ -56,6 +57,7 @@ class Settings:
         jira_url = os.getenv("JIRA_BASE_URL", "").strip().rstrip("/") or None
         jira_email = os.getenv("JIRA_EMAIL", "").strip() or None
         jira_token = os.getenv("JIRA_API_TOKEN", "").strip() or None
+        jira_proj = os.getenv("JIRA_PROJECT_KEY", "").strip() or None
 
         return cls(
             confluence_base_url=base_url,
@@ -65,6 +67,7 @@ class Settings:
             jira_base_url=jira_url,
             jira_email=jira_email,
             jira_api_token=jira_token,
+            jira_project_key=jira_proj,
         )
 
     def validate_confluence(self) -> None:
@@ -80,5 +83,21 @@ class Settings:
         if missing:
             raise ValueError(
                 f"Missing required Confluence settings: {', '.join(missing)}. "
+                "Please configure them in your .env file or environment variables."
+            )
+
+    def validate_jira(self) -> None:
+        """Validate that essential Jira credentials are present."""
+        missing = []
+        if not self.jira_base_url:
+            missing.append("JIRA_BASE_URL")
+        if not self.jira_email:
+            missing.append("JIRA_EMAIL")
+        if not self.jira_api_token:
+            missing.append("JIRA_API_TOKEN")
+
+        if missing:
+            raise ValueError(
+                f"Missing required Jira settings: {', '.join(missing)}. "
                 "Please configure them in your .env file or environment variables."
             )

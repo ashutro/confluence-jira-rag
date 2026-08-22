@@ -13,11 +13,13 @@ confluence-jira-rag/
       queries.json      # Benchmark evaluation questions
     raw/                # Exported source data
       confluence/       # Confluence connector output (pages.json)
+      jira/             # Jira connector output (issues.json)
     processed/          # Cleaned/chunked data later, not committed
   docs/                 # Notes and project documentation
     milestone-1-setup.md
     milestone-2-atlassian-setup.md
     milestone-3-confluence-connector.md
+    milestone-4-jira-connector.md
   src/
     rag_assistant/      # Python package
       config.py         # Environment configuration
@@ -26,9 +28,12 @@ confluence-jira-rag/
       connectors/       # External source connectors
         confluence.py   # Confluence REST API connector
         html_cleaner.py # XHTML storage format cleaner
+        jira.py         # Jira REST API connector
+        adf_cleaner.py  # Jira Atlassian Document Format cleaner
   tests/                # Automated tests
     test_sample_data.py
     test_confluence_connector.py
+    test_jira_connector.py
 ```
 
 ## Local Setup
@@ -48,23 +53,26 @@ Run automated tests:
 pytest tests/ -v
 ```
 
-## Running the Confluence Connector (Milestone 3)
+## Running Data Connectors (Milestones 3 & 4)
 
-Retrieve Confluence pages and export to structured JSON:
+Retrieve Confluence pages and Jira issues and export them to structured JSON:
 
 ```bash
-# Offline Mock Mode (uses safe local test dataset):
+# Confluence Connector
 rag-assistant fetch-confluence --mock --output data/raw/confluence/pages.json
-
-# Live Confluence Cloud Mode (requires .env credentials):
 rag-assistant fetch-confluence --space ENG --output data/raw/confluence/pages.json
+
+# Jira Connector
+rag-assistant fetch-jira --mock --output data/raw/jira/issues.json
+rag-assistant fetch-jira --project PAY --output data/raw/jira/issues.json
 ```
 
-See [docs/milestone-3-confluence-connector.md](file:///Users/ashutosh/Documents/Codex/2026-08-22/referenced-chatgpt-conversation-this-is-an/confluence-jira-rag/docs/milestone-3-confluence-connector.md) for full documentation.
+See [docs/milestone-3-confluence-connector.md](file:///Users/ashutosh/Documents/Codex/2026-08-22/referenced-chatgpt-conversation-this-is-an/confluence-jira-rag/docs/milestone-3-confluence-connector.md) and [docs/milestone-4-jira-connector.md](file:///Users/ashutosh/Documents/Codex/2026-08-22/referenced-chatgpt-conversation-this-is-an/confluence-jira-rag/docs/milestone-4-jira-connector.md) for full documentation.
 
 ## Status
 
 - [x] **Milestone 1**: Local Project Setup
 - [x] **Milestone 2**: Atlassian Setup & Sample Data
 - [x] **Milestone 3**: Confluence Connector
-- [ ] **Milestone 4**: Jira Connector
+- [x] **Milestone 4**: Jira Connector
+- [ ] **Milestone 5**: Data Normalization & Chunking
