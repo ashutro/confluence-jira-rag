@@ -40,15 +40,20 @@ document.addEventListener("DOMContentLoaded", () => {
   fetchStats();
   updateSendBtnState();
 
-  // 1. Sidebar Toggles
-  if (sidebarToggleBtn) {
-    sidebarToggleBtn.addEventListener("click", () => {
-      gptSidebar.classList.remove("collapsed");
+  const sidebarHideBtn = document.getElementById("sidebar-hide-btn");
+  const sidebarShowBtn = document.getElementById("sidebar-show-btn");
+
+  // 1. Sidebar Toggles (ChatGPT style)
+  if (sidebarHideBtn) {
+    sidebarHideBtn.addEventListener("click", () => {
+      gptSidebar.classList.add("collapsed");
+      if (sidebarShowBtn) sidebarShowBtn.style.display = "flex";
     });
   }
-  if (sidebarCloseBtn) {
-    sidebarCloseBtn.addEventListener("click", () => {
-      gptSidebar.classList.add("collapsed");
+  if (sidebarShowBtn) {
+    sidebarShowBtn.addEventListener("click", () => {
+      gptSidebar.classList.remove("collapsed");
+      sidebarShowBtn.style.display = "none";
     });
   }
 
