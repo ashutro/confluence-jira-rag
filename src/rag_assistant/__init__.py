@@ -13,6 +13,13 @@ from rag_assistant.connectors.jira import (
     JiraDocument,
     MockJiraConnector,
 )
+from rag_assistant.core.models import Chunk, UnifiedDocument
+from rag_assistant.processing.chunker import MarkdownChunker
+from rag_assistant.processing.normalizer import (
+    DocumentNormalizer,
+    normalize_confluence_page,
+    normalize_jira_issue,
+)
 from rag_assistant.sample_data import (
     BenchmarkQuery,
     ConfluencePage,
@@ -26,6 +33,8 @@ __version__ = "0.1.0"
 __all__ = [
     "Settings",
     "get_project_root",
+    "UnifiedDocument",
+    "Chunk",
     "ConfluenceConnector",
     "ConfluenceDocument",
     "MockConfluenceConnector",
@@ -34,6 +43,10 @@ __all__ = [
     "JiraDocument",
     "MockJiraConnector",
     "clean_adf_to_markdown",
+    "DocumentNormalizer",
+    "normalize_confluence_page",
+    "normalize_jira_issue",
+    "MarkdownChunker",
     "ConfluencePage",
     "JiraIssue",
     "BenchmarkQuery",
