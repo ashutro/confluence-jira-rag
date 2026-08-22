@@ -1,2 +1,10 @@
-# Milestone 2 dependencies
+# Confluence + Jira RAG Assistant Dependencies
+
+# Core HTTP and environment
+requests>=2.31.0
+python-dotenv>=1.0.0
+beautifulsoup4>=4.12.0
+
+# Testing
 pytest>=8.0.0
+responses>=0.25.0

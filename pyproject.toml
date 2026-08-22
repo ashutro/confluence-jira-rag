@@ -1,8 +1,18 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "confluence-jira-rag"
 version = "0.1.0"
 description = "Internal RAG assistant for Confluence and Jira knowledge."
 requires-python = ">=3.11"
+
+[project.scripts]
+rag-assistant = "rag_assistant.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
