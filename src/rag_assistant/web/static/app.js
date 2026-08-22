@@ -194,6 +194,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const elapsedSec = ((performance.now() - startTime) / 1000).toFixed(1);
       data.elapsed_sec = elapsedSec;
 
+      if (data.model_name) {
+        activeModelLabel.textContent = data.model_name;
+      }
+
       typingTurn.remove();
       appendAssistantMessage(data);
 
