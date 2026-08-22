@@ -8,8 +8,11 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
 import requests
+from dotenv import load_dotenv
 
 from rag_assistant.config import Settings
+
+load_dotenv()
 
 COMMON_STOPWORDS = {
     "what", "where", "when", "which", "who", "whom", "whose", "why", "how",
