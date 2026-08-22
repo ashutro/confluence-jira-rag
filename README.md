@@ -1,6 +1,37 @@
 # Confluence + Jira RAG Assistant
 
-Internal knowledge assistant that answers questions from Confluence pages and Jira issues.
+Internal knowledge assistant that answers questions from Confluence documentation pages and Jira issues using Qdrant Vector Database and LLM synthesis.
+
+```text
++-----------------------+     +-----------------------+
+|  Confluence Cloud API |     |    Jira Cloud API     |
++-----------------------+     +-----------------------+
+            |                             |
+            v                             v
++-----------------------------------------------------+
+| Connectors (ConfluenceConnector & JiraConnector)    |
++-----------------------------------------------------+
+            |
+            v
++-----------------------------------------------------+
+| Document Normalizer & Hierarchical Markdown Chunker |
++-----------------------------------------------------+
+            |
+            v
++-----------------------------------------------------+
+| Dense Embeddings + Qdrant Vector Database           |
++-----------------------------------------------------+
+            |
+            v
++-----------------------------------------------------+
+| RAG Retrieval Engine + Hybrid Re-Ranking            |
++-----------------------------------------------------+
+            |
+            v
++-----------------------------------------------------+
+| LLM Q&A Synthesis (OpenAI / Anthropic / Gemini)     |
++-----------------------------------------------------+
+```
 
 ## Project Structure
 
@@ -26,10 +57,12 @@ confluence-jira-rag/
     milestone-5-normalization-chunking.md
     milestone-6-vector-database-qdrant.md
     milestone-7-retrieval.md
+    milestone-8-llm-assistant.md
   src/
     rag_assistant/      # Python package
       config.py         # Environment configuration
       cli.py            # Command Line Interface
+      assistant.py      # End-to-end RAG assistant coordinator
       sample_data.py    # Sample dataset loaders
       core/
         models.py       # UnifiedDocument & Chunk models
@@ -47,6 +80,9 @@ confluence-jira-rag/
       retrieval/        # Retrieval Engine & Evaluation (Milestone 7)
         retriever.py    # RAGRetriever & RetrievalContext
         evaluator.py    # RetrievalEvaluator & BenchmarkReport
+      llm/              # LLM Generation & Prompts (Milestone 8)
+        prompts.py      # System prompts & grounding templates
+        providers.py    # OpenAI, Anthropic, Gemini, Ollama, Mock providers
   tests/                # Automated tests
     test_sample_data.py
     test_confluence_connector.py
@@ -54,6 +90,7 @@ confluence-jira-rag/
     test_normalizer_and_chunker.py
     test_vector_store.py
     test_retrieval.py
+    test_llm_and_assistant.py
 ```
 
 ## Local Setup
@@ -67,13 +104,15 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-Run automated tests:
+Run automated tests (47/47 passing):
 
 ```bash
 pytest tests/ -v
 ```
 
-## Data & Retrieval Pipeline Commands
+---
+
+## Quickstart Guide
 
 ### 1. Ingest Data (Milestones 3 & 4)
 ```bash
@@ -86,32 +125,32 @@ rag-assistant fetch-jira --mock --output data/raw/jira/issues.json
 rag-assistant normalize-chunk --mock
 ```
 
-### 3. Vector Database Indexing (Milestone 6)
+### 3. Index Vector Database (Milestone 6)
 ```bash
 rag-assistant index-qdrant --mock --db-path data/qdrant_db --recreate
 ```
 
-### 4. Context Retrieval & Evaluation (Milestone 7)
+### 4. Ask Questions with the RAG Assistant (Milestone 8)
 ```bash
-# Retrieve grounded context with source citations:
-rag-assistant retrieve "What is the runbook for webhook 504 gateway timeouts?" --mock --top-k 3
+# Ask a single question:
+rag-assistant ask "What is the runbook for webhook 504 gateway timeouts?" --mock
 
-# Retrieve formatted LLM prompt context:
-rag-assistant retrieve "How do rate limit tiers work?" --mock --top-k 2 --format context
+# Interactive terminal chat:
+rag-assistant chat --mock
 
-# Run retrieval benchmark evaluation:
-rag-assistant evaluate-retrieval --mock
+# Run end-to-end benchmark evaluation:
+rag-assistant evaluate-qa --mock
 ```
 
-See [docs/milestone-7-retrieval.md](file:///Users/ashutosh/Documents/Codex/2026-08-22/referenced-chatgpt-conversation-this-is-an/confluence-jira-rag/docs/milestone-7-retrieval.md) for full details.
+---
 
-## Status
+## Milestone Roadmap & Status
 
-- [x] **Milestone 1**: Local Project Setup
-- [x] **Milestone 2**: Atlassian Setup & Sample Data
-- [x] **Milestone 3**: Confluence Connector
-- [x] **Milestone 4**: Jira Connector
-- [x] **Milestone 5**: Data Normalization & Chunking
+- [x] **Milestone 1**: Local Project Setup & Repository Initialization
+- [x] **Milestone 2**: Atlassian Setup & Seed Dataset
+- [x] **Milestone 3**: Confluence Connector (XHTML $\to$ Markdown)
+- [x] **Milestone 4**: Jira Connector (ADF AST $\to$ Markdown)
+- [x] **Milestone 5**: Data Normalization & Hierarchical Markdown Chunking
 - [x] **Milestone 6**: Vector Database (Qdrant) & Semantic Search
-- [x] **Milestone 7**: Context-Grounded Retrieval & Benchmark Evaluation
-- [ ] **Milestone 8**: LLM Q&A Assistant CLI / Web App
+- [x] **Milestone 7**: Context-Grounded Retrieval Engine & Benchmark Evaluation
+- [x] **Milestone 8**: LLM Q&A Assistant, Multi-Provider Support & Interactive Chat CLI

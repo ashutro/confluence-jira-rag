@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
+from rag_assistant.assistant import RAGAssistant
 from rag_assistant.config import Settings
 from rag_assistant.connectors.confluence import (
     ConfluenceConnector,
@@ -21,6 +23,7 @@ from rag_assistant.processing.chunker import MarkdownChunker
 from rag_assistant.processing.normalizer import DocumentNormalizer
 from rag_assistant.retrieval.evaluator import RetrievalEvaluator
 from rag_assistant.retrieval.retriever import RAGRetriever
+from rag_assistant.sample_data import load_benchmark_queries
 from rag_assistant.vector_store.embeddings import get_embedder
 from rag_assistant.vector_store.qdrant import QdrantVectorStore
 
@@ -129,7 +132,6 @@ def normalize_and_chunk_command(args: argparse.Namespace) -> int:
     print("Data Normalization & Chunking Pipeline (Milestone 5)")
     print("=" * 60)
 
-    # 1. Load or Mock Raw Confluence Pages
     confluence_raw = []
     if conf_in.exists():
         with open(conf_in, "r", encoding="utf-8") as f:
@@ -145,7 +147,6 @@ def normalize_and_chunk_command(args: argparse.Namespace) -> int:
         print(f"[Error] Confluence input file '{conf_in}' not found. Run `fetch-confluence` first or pass `--mock`.", file=sys.stderr)
         return 1
 
-    # 2. Load or Mock Raw Jira Issues
     jira_raw = []
     if jira_in.exists():
         with open(jira_in, "r", encoding="utf-8") as f:
@@ -161,20 +162,17 @@ def normalize_and_chunk_command(args: argparse.Namespace) -> int:
         print(f"[Error] Jira input file '{jira_in}' not found. Run `fetch-jira` first or pass `--mock`.", file=sys.stderr)
         return 1
 
-    # 3. Normalize into UnifiedDocuments
     print("\nNormalizing records into Unified Documents...")
     normalized_docs = DocumentNormalizer.normalize_all(confluence_raw, jira_raw)
     DocumentNormalizer.save_documents_to_json(normalized_docs, docs_out)
     print(f"Saved {len(normalized_docs)} UnifiedDocument(s) to: {docs_out.resolve()}")
 
-    # 4. Chunk with Hierarchical Markdown Chunker
     print(f"\nChunking documents (size={chunk_size}, overlap={chunk_overlap})...")
     chunker = MarkdownChunker(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     chunks = chunker.chunk_documents(normalized_docs)
     MarkdownChunker.save_chunks_to_json(chunks, chunks_out)
     print(f"Generated {len(chunks)} Chunk(s) saved to: {chunks_out.resolve()}\n")
 
-    # 5. Display Pipeline Statistics
     conf_chunks = [c for c in chunks if c.source_type == "confluence"]
     jira_chunks = [c for c in chunks if c.source_type == "jira"]
     avg_chars = sum(c.char_count for c in chunks) / len(chunks) if chunks else 0
@@ -335,7 +333,6 @@ def retrieve_command(args: argparse.Namespace) -> int:
             print(f"- [{s['source_type'].upper()} {s['source_id']}] {s['title']} (Citations: {s['citation_indices']})")
         return 0
 
-    # Default table/cards view
     print(f"Retrieved {len(context.chunks)} top chunk(s) across {len(context.sources)} document source(s):\n")
     for chunk in context.chunks:
         print(f"--- {chunk.citation_tag} | Score: {chunk.score:.4f} ---")
@@ -392,6 +389,168 @@ def evaluate_retrieval_command(args: argparse.Namespace) -> int:
     print(f"  Mean Reciprocal Rank (MRR): {report.mrr:.4f}")
     print("=" * 60)
 
+    return 0
+
+
+def ask_command(args: argparse.Namespace) -> int:
+    """Execute end-to-end RAG Q&A query."""
+    question = args.question
+    provider = args.provider
+    model = args.model
+    top_k = args.top_k
+    source_filter = args.source
+    db_path = args.db_path
+    collection = args.collection
+    use_mock = args.mock
+
+    print("=" * 60)
+    print("Enterprise RAG Assistant (Milestone 8)")
+    print("=" * 60)
+    print(f"Question: \"{question}\"")
+    if source_filter:
+        print(f"Filter:   {source_filter.upper()} only")
+    print("=" * 60)
+
+    try:
+        assistant = RAGAssistant.create(
+            db_path=db_path,
+            collection_name=collection,
+            use_mock=use_mock,
+            provider_name=provider,
+            model_name=model,
+        )
+        answer = assistant.ask(
+            question=question,
+            top_k=top_k,
+            filter_source=source_filter,
+        )
+
+        if args.format == "json":
+            print(json.dumps(answer.to_dict(), indent=2))
+            return 0
+
+        print(f"\n{answer.answer}\n")
+        print("-" * 60)
+        print(f"Provider: {answer.provider} ({answer.model_name}) | Latency: {answer.execution_time_ms:.1f}ms")
+        print("=" * 60)
+        return 0
+
+    except Exception as e:
+        print(f"\n[Error] Generation failed: {e}", file=sys.stderr)
+        return 1
+
+
+def chat_command(args: argparse.Namespace) -> int:
+    """Launch interactive CLI chat session with the RAG assistant."""
+    db_path = args.db_path
+    collection = args.collection
+    provider = args.provider
+    model = args.model
+    use_mock = args.mock
+
+    print("=" * 60)
+    print("🤖 Confluence + Jira RAG Interactive Assistant")
+    print("=" * 60)
+    print("Ask any question about documentation, runbooks, or tickets.")
+    print("Type 'exit', 'quit', or 'q' to stop.")
+    print("=" * 60 + "\n")
+
+    try:
+        assistant = RAGAssistant.create(
+            db_path=db_path,
+            collection_name=collection,
+            use_mock=use_mock,
+            provider_name=provider,
+            model_name=model,
+        )
+
+        while True:
+            try:
+                question = input("❓ Question: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                print("\nGoodbye!")
+                break
+
+            if not question:
+                continue
+            if question.lower() in ("exit", "quit", "q"):
+                print("Goodbye!")
+                break
+
+            print("\nSearching knowledge base & synthesizing answer...")
+            answer = assistant.ask(question=question, top_k=3)
+            print("\n" + "=" * 60)
+            print(answer.answer)
+            print("=" * 60)
+            print(f"[{answer.provider} | {answer.execution_time_ms:.1f}ms]\n")
+
+        return 0
+
+    except Exception as e:
+        print(f"\n[Error] Chat session error: {e}", file=sys.stderr)
+        return 1
+
+
+def evaluate_qa_command(args: argparse.Namespace) -> int:
+    """Execute end-to-end benchmark Q&A evaluation."""
+    queries_file = Path(args.queries)
+    db_path = args.db_path
+    collection = args.collection
+    use_mock = args.mock
+
+    print("=" * 60)
+    print("End-to-End RAG Q&A Benchmark Evaluation (Milestone 8)")
+    print("=" * 60)
+    print(f"Benchmark Queries: {queries_file}\n")
+
+    queries = load_benchmark_queries(queries_file)
+    assistant = RAGAssistant.create(
+        db_path=db_path,
+        collection_name=collection,
+        use_mock=use_mock,
+    )
+
+    passed_count = 0
+    total_time_ms = 0.0
+
+    print("Evaluating Generated Answers:")
+    print("-" * 60)
+    for q in queries:
+        ans = assistant.ask(question=q.question, top_k=3)
+        total_time_ms += ans.execution_time_ms
+
+        retrieved_ids = {c.source_id for c in ans.context.chunks}
+        target_set = set(q.target_sources)
+        hit_target = bool(target_set.intersection(retrieved_ids))
+
+        # Check keyword inclusion
+        ans_lower = ans.answer.lower()
+        keywords = getattr(q, "expected_answer_keywords", getattr(q, "expected_keywords", []))
+        keyword_hits = sum(1 for kw in keywords if kw.lower() in ans_lower)
+        keyword_coverage = (keyword_hits / len(keywords)) if keywords else 1.0
+
+        is_passed = hit_target and keyword_coverage >= 0.3
+        if is_passed:
+            passed_count += 1
+
+        status_icon = "PASS" if is_passed else "FAIL"
+        print(f"[{status_icon}] [{q.id}]")
+        print(f"  Q: \"{q.question}\"")
+        print(f"  Target Sources: {q.target_sources} -> Retrieved: {list(retrieved_ids)}")
+        print(f"  Keyword Coverage: {keyword_coverage * 100:.0f}% ({keyword_hits}/{len(keywords)})")
+        print(f"  Answer Snippet: {ans.answer[:120].replace(chr(10), ' ')}...\n")
+
+    n = len(queries) or 1
+    accuracy = (passed_count / n) * 100.0
+    avg_latency = total_time_ms / n
+
+    print("=" * 60)
+    print("Benchmark Q&A Summary:")
+    print("=" * 60)
+    print(f"  Total Queries:      {n}")
+    print(f"  Passed Queries:     {passed_count} ({accuracy:.1f}%)")
+    print(f"  Average Latency:    {avg_latency:.1f}ms")
+    print("=" * 60)
     return 0
 
 
@@ -592,7 +751,7 @@ def main() -> None:
         help="Use deterministic offline MockEmbedder.",
     )
 
-    # retrieve subcommand (Milestone 7)
+    # retrieve subcommand
     retrieve_parser = subparsers.add_parser(
         "retrieve",
         help="Retrieve grounded context chunks with source citations for a question.",
@@ -643,35 +802,167 @@ def main() -> None:
         help="Use offline mock embedder.",
     )
 
-    # evaluate-retrieval subcommand (Milestone 7)
-    eval_parser = subparsers.add_parser(
+    # evaluate-retrieval subcommand
+    eval_ret_parser = subparsers.add_parser(
         "evaluate-retrieval",
         help="Evaluate retrieval performance against benchmark queries.",
     )
-    eval_parser.add_argument(
+    eval_ret_parser.add_argument(
         "--queries",
         "-q",
         type=str,
         default="data/sample/queries.json",
         help="Path to evaluation benchmark queries JSON file.",
     )
-    eval_parser.add_argument(
+    eval_ret_parser.add_argument(
         "--collection",
         "-c",
         type=str,
         default="knowledge_base",
         help="Qdrant collection name.",
     )
-    eval_parser.add_argument(
+    eval_ret_parser.add_argument(
         "--db-path",
         type=str,
         default="data/qdrant_db",
         help="Local Qdrant database directory.",
     )
-    eval_parser.add_argument(
+    eval_ret_parser.add_argument(
         "--mock",
         action="store_true",
         help="Use offline mock embedder.",
+    )
+
+    # ask subcommand (Milestone 8)
+    ask_parser = subparsers.add_parser(
+        "ask",
+        help="Ask a question and receive a grounded synthesized answer with citations.",
+    )
+    ask_parser.add_argument(
+        "question",
+        type=str,
+        help="Question to ask the assistant.",
+    )
+    ask_parser.add_argument(
+        "--provider",
+        type=str,
+        choices=["openai", "anthropic", "gemini", "ollama", "mock"],
+        default=None,
+        help="LLM provider name.",
+    )
+    ask_parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="Specific model name (e.g. gpt-4o, claude-3-5-sonnet).",
+    )
+    ask_parser.add_argument(
+        "--top-k",
+        "-k",
+        type=int,
+        default=3,
+        help="Number of retrieved chunks for context.",
+    )
+    ask_parser.add_argument(
+        "--source",
+        type=str,
+        choices=["confluence", "jira"],
+        default=None,
+        help="Filter context by source type.",
+    )
+    ask_parser.add_argument(
+        "--collection",
+        "-c",
+        type=str,
+        default="knowledge_base",
+        help="Qdrant collection name.",
+    )
+    ask_parser.add_argument(
+        "--db-path",
+        type=str,
+        default="data/qdrant_db",
+        help="Local Qdrant database directory.",
+    )
+    ask_parser.add_argument(
+        "--format",
+        "-f",
+        type=str,
+        choices=["pretty", "json"],
+        default="pretty",
+        help="Output display format.",
+    )
+    ask_parser.add_argument(
+        "--mock",
+        action="store_true",
+        help="Use offline mock mode (MockEmbedder + MockLLMProvider).",
+    )
+
+    # chat subcommand (Milestone 8)
+    chat_parser = subparsers.add_parser(
+        "chat",
+        help="Start an interactive chat session with the RAG assistant.",
+    )
+    chat_parser.add_argument(
+        "--provider",
+        type=str,
+        choices=["openai", "anthropic", "gemini", "ollama", "mock"],
+        default=None,
+        help="LLM provider name.",
+    )
+    chat_parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="Model name.",
+    )
+    chat_parser.add_argument(
+        "--collection",
+        "-c",
+        type=str,
+        default="knowledge_base",
+        help="Qdrant collection name.",
+    )
+    chat_parser.add_argument(
+        "--db-path",
+        type=str,
+        default="data/qdrant_db",
+        help="Local Qdrant database directory.",
+    )
+    chat_parser.add_argument(
+        "--mock",
+        action="store_true",
+        help="Use offline mock mode.",
+    )
+
+    # evaluate-qa subcommand (Milestone 8)
+    eval_qa_parser = subparsers.add_parser(
+        "evaluate-qa",
+        help="Evaluate end-to-end question answering against benchmark dataset.",
+    )
+    eval_qa_parser.add_argument(
+        "--queries",
+        "-q",
+        type=str,
+        default="data/sample/queries.json",
+        help="Path to evaluation benchmark queries JSON file.",
+    )
+    eval_qa_parser.add_argument(
+        "--collection",
+        "-c",
+        type=str,
+        default="knowledge_base",
+        help="Qdrant collection name.",
+    )
+    eval_qa_parser.add_argument(
+        "--db-path",
+        type=str,
+        default="data/qdrant_db",
+        help="Local Qdrant database directory.",
+    )
+    eval_qa_parser.add_argument(
+        "--mock",
+        action="store_true",
+        help="Use offline mock mode.",
     )
 
     args = parser.parse_args()
@@ -696,6 +987,15 @@ def main() -> None:
         sys.exit(exit_code)
     elif args.command == "evaluate-retrieval":
         exit_code = evaluate_retrieval_command(args)
+        sys.exit(exit_code)
+    elif args.command == "ask":
+        exit_code = ask_command(args)
+        sys.exit(exit_code)
+    elif args.command == "chat":
+        exit_code = chat_command(args)
+        sys.exit(exit_code)
+    elif args.command == "evaluate-qa":
+        exit_code = evaluate_qa_command(args)
         sys.exit(exit_code)
     else:
         parser.print_help()

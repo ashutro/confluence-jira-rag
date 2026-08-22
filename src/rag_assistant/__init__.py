@@ -1,5 +1,9 @@
 """Confluence + Jira RAG assistant package."""
 
+from rag_assistant.assistant import (
+    RAGAnswer,
+    RAGAssistant,
+)
 from rag_assistant.config import Settings, get_project_root
 from rag_assistant.connectors.adf_cleaner import clean_adf_to_markdown
 from rag_assistant.connectors.confluence import (
@@ -14,6 +18,16 @@ from rag_assistant.connectors.jira import (
     MockJiraConnector,
 )
 from rag_assistant.core.models import Chunk, UnifiedDocument
+from rag_assistant.llm.prompts import SYSTEM_PROMPT, format_user_prompt
+from rag_assistant.llm.providers import (
+    AnthropicProvider,
+    BaseLLMProvider,
+    GeminiProvider,
+    MockLLMProvider,
+    OllamaProvider,
+    OpenAIProvider,
+    get_llm_provider,
+)
 from rag_assistant.processing.chunker import MarkdownChunker
 from rag_assistant.processing.normalizer import (
     DocumentNormalizer,
@@ -79,6 +93,17 @@ __all__ = [
     "RetrievalEvaluator",
     "BenchmarkReport",
     "QueryEvalResult",
+    "SYSTEM_PROMPT",
+    "format_user_prompt",
+    "BaseLLMProvider",
+    "MockLLMProvider",
+    "OpenAIProvider",
+    "AnthropicProvider",
+    "GeminiProvider",
+    "OllamaProvider",
+    "get_llm_provider",
+    "RAGAssistant",
+    "RAGAnswer",
     "ConfluencePage",
     "JiraIssue",
     "BenchmarkQuery",
