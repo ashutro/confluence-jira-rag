@@ -1,0 +1,9 @@
+[project]
+name = "confluence-jira-rag"
+version = "0.1.0"
+description = "Internal RAG assistant for Confluence and Jira knowledge."
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
