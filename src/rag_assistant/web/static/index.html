@@ -11,19 +11,14 @@
 </head>
 <body class="gpt-theme">
   <div class="gpt-app" id="gpt-app">
-    <!-- Collapsible Clean Sidebar (ChatGPT style) -->
+    <!-- Clean Permanent Sidebar (ChatGPT style) -->
     <aside class="gpt-sidebar" id="gpt-sidebar">
       <div class="sidebar-header">
-        <button class="sidebar-icon-btn" id="sidebar-close-btn" title="Close sidebar">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="9" y1="3" x2="9" y2="21"></line>
-          </svg>
-        </button>
         <button class="sidebar-new-chat-btn" id="new-chat-btn" title="New chat">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 5v14M5 12h14"/>
           </svg>
+          <span style="font-size:0.88rem; font-weight:500;">New chat</span>
         </button>
       </div>
 
@@ -87,13 +82,6 @@
       <!-- Top Minimal Header -->
       <header class="gpt-header">
         <div class="header-left">
-          <button class="sidebar-icon-btn" id="sidebar-toggle-btn" title="Open sidebar">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="9" y1="3" x2="9" y2="21"></line>
-            </svg>
-          </button>
-
           <!-- Model Switcher Pill (ChatGPT 4o style) -->
           <div class="model-picker-pill" id="model-picker">
             <span class="gpt-sparkle">✦</span>

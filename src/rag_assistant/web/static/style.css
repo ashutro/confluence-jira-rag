@@ -85,47 +85,27 @@ body.gpt-theme {
 
 .sidebar-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 0 4px;
-}
-
-.sidebar-icon-btn {
-  background: transparent;
-  border: none;
-  color: var(--gpt-text-secondary);
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s;
-}
-
-.sidebar-icon-btn:hover {
-  background: var(--gpt-bg-sidebar-hover);
-  color: var(--gpt-text-primary);
+  padding: 4px 2px;
 }
 
 .sidebar-new-chat-btn {
-  background: transparent;
-  border: none;
-  color: var(--gpt-text-secondary);
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: var(--gpt-bg-input);
+  border: 1px solid var(--gpt-border-subtle);
+  color: var(--gpt-text-primary);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .sidebar-new-chat-btn:hover {
-  background: var(--gpt-bg-sidebar-hover);
-  color: var(--gpt-text-primary);
+  background: var(--gpt-bg-card-hover);
+  border-color: var(--gpt-border-medium);
 }
 
 .sidebar-section {
