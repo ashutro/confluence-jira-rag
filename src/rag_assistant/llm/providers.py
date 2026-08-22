@@ -308,7 +308,7 @@ class OpenRouterProvider(BaseLLMProvider):
         self.model_name = model_name
         self.base_url = base_url.rstrip("/")
         self.enable_reasoning = enable_reasoning
-        self.api_key = api_key or os.getenv("OPENROUTER_API_KEY", "").strip()
+        self.api_key = api_key if api_key is not None else os.getenv("OPENROUTER_API_KEY", "").strip()
         if not self.api_key:
             raise ValueError("OPENROUTER_API_KEY is not set. Please set it in .env or choose `--mock`.")
 

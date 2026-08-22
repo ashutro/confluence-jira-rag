@@ -89,7 +89,7 @@ def test_api_ask_empty_question(client: TestClient):
 def test_serve_html_index(client: TestClient):
     resp = client.get("/")
     assert resp.status_code == 200
-    assert "Enterprise Knowledge Assistant" in resp.text
+    assert "Enterprise AI Assistant" in resp.text or "Confluence + Jira" in resp.text
     assert "html" in resp.headers["content-type"]
 
 
