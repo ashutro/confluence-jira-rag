@@ -1,0 +1,73 @@
+[
+  {
+    "id": "QUERY-01",
+    "question": "What should an on-call engineer do when the webhook worker experiences 504 Gateway Timeouts?",
+    "target_sources": ["ENG-PAGE-02", "PAY-102"],
+    "expected_answer_keywords": [
+      "kubectl scale deployment pay-webhook",
+      "quarantine",
+      "Consul KV",
+      "queue:webhooks:dispatch",
+      "circuit breaker"
+    ]
+  },
+  {
+    "id": "QUERY-02",
+    "question": "What are the API rate limits for each merchant tier?",
+    "target_sources": ["ENG-PAGE-04", "PAY-104"],
+    "expected_answer_keywords": [
+      "Starter: 20 RPS",
+      "Growth: 100 RPS",
+      "Enterprise: 500 RPS",
+      "Redis Token Bucket",
+      "HTTP 429"
+    ]
+  },
+  {
+    "id": "QUERY-03",
+    "question": "How long do we retain customer PII and financial transaction records under our GDPR policy?",
+    "target_sources": ["ENG-PAGE-05", "PAY-107"],
+    "expected_answer_keywords": [
+      "90 days",
+      "7 years",
+      "0 seconds for CVV",
+      "pseudonymized",
+      "ledger_entries"
+    ]
+  },
+  {
+    "id": "QUERY-04",
+    "question": "Why does docker compose crash on Apple Silicon M-series Macs and what is the fix?",
+    "target_sources": ["ENG-PAGE-03", "PAY-105"],
+    "expected_answer_keywords": [
+      "DOCKER_DEFAULT_PLATFORM=linux/arm64",
+      "acquirer-mock",
+      "multi-arch",
+      "PAY-105"
+    ]
+  },
+  {
+    "id": "QUERY-05",
+    "question": "What is the status of the intermittent 504 Gateway Timeout bug during batch settlement?",
+    "target_sources": ["PAY-103", "ENG-PAGE-01"],
+    "expected_answer_keywords": [
+      "In Progress",
+      "Priya Nair",
+      "Celery worker background tasks",
+      "HTTP 202 Accepted",
+      "PAY-103"
+    ]
+  },
+  {
+    "id": "QUERY-06",
+    "question": "What caused the database connection pool starvation during Black Friday and how was it fixed?",
+    "target_sources": ["PAY-106", "ENG-PAGE-01"],
+    "expected_answer_keywords": [
+      "PgBouncer",
+      "connection pool starvation",
+      "max_connections",
+      "FastAPI Gunicorn workers",
+      "db.r6g.2xlarge"
+    ]
+  }
+]

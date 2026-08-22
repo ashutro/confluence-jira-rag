@@ -1,0 +1,366 @@
+[
+  {
+    "id": "10101",
+    "key": "PAY-101",
+    "project_key": "PAY",
+    "project_name": "Core Payments Team",
+    "issue_type": "Epic",
+    "summary": "Next-Gen Webhook Reliability & Idempotency Pipeline",
+    "description": "Redesign the merchant webhook delivery subsystem (`pay-webhook`) to guarantee at-least-once delivery with HMAC-SHA256 signatures, exponential backoff retries, and dynamic circuit breaking for degraded endpoints.\n\n### Deliverables:\n1. Dedicated Redis worker queues per merchant priority tier.\n2. Circuit breaker integration with Consul KV for instant quarantining.\n3. Zero-loss dead-letter queue (DLQ) processing mechanism.\n4. Documentation and operational runbook updates (`ENG-PAGE-02`).",
+    "status": "In Progress",
+    "priority": "High",
+    "reporter": {
+      "name": "alex.morgan@example.com",
+      "display_name": "Alex Morgan",
+      "role": "Staff Architect"
+    },
+    "assignee": {
+      "name": "david.kim@example.com",
+      "display_name": "David Kim",
+      "role": "Senior Backend Engineer"
+    },
+    "components": ["Webhook Dispatcher", "Reliability", "Architecture"],
+    "labels": ["epic", "q3-goals", "resilience", "webhooks"],
+    "created_at": "2026-07-15T10:00:00Z",
+    "updated_at": "2026-08-19T14:20:00Z",
+    "resolved_at": null,
+    "resolution": null,
+    "linked_confluence_pages": [
+      {
+        "id": "ENG-PAGE-01",
+        "title": "Architecture Overview & Service Topology"
+      },
+      {
+        "id": "ENG-PAGE-02",
+        "title": "Incident Response Runbook: Payment Webhook 504 Gateway Timeouts"
+      }
+    ],
+    "linked_issues": [
+      {
+        "relationship": "contains",
+        "key": "PAY-102"
+      },
+      {
+        "relationship": "contains",
+        "key": "PAY-103"
+      }
+    ],
+    "comments": [
+      {
+        "author": "alex.morgan@example.com",
+        "created_at": "2026-07-20T11:00:00Z",
+        "body": "Phase 1 architecture review approved in team sync. Proceeding with worker pool refactor."
+      },
+      {
+        "author": "david.kim@example.com",
+        "created_at": "2026-08-19T14:20:00Z",
+        "body": "Worker pool retry queue implementation is complete. Writing unit tests and chaos test scenarios."
+      }
+    ]
+  },
+  {
+    "id": "10102",
+    "key": "PAY-102",
+    "project_key": "PAY",
+    "project_name": "Core Payments Team",
+    "issue_type": "Bug",
+    "summary": "Webhook delivery worker exhausted memory under high traffic burst",
+    "description": "During the end-of-month billing run, `pay-webhook` pods experienced out-of-memory (OOMKilled) crashes due to unbounded in-memory channel buffering when downstream merchant endpoints responded with 504 Gateway Timeouts.\n\n### Root Cause Analysis:\nGolang goroutines spawned per webhook dispatch were holding unreleased HTTP client transport buffers while waiting on a 60s timeout.\n\n### Fix Applied:\n1. Reduced HTTP client timeout to 5 seconds with strict connection pooling.\n2. Switched from unbounded in-memory channel to Redis-backed bounded queue (`queue:webhooks:dispatch`).\n3. Added memory limit alerts at 75% pod utilization.",
+    "status": "Closed",
+    "priority": "Highest",
+    "reporter": {
+      "name": "sam.patel@example.com",
+      "display_name": "Sam Patel",
+      "role": "SRE Team Lead"
+    },
+    "assignee": {
+      "name": "david.kim@example.com",
+      "display_name": "David Kim",
+      "role": "Senior Backend Engineer"
+    },
+    "components": ["Webhook Dispatcher", "Infrastructure"],
+    "labels": ["bug", "oom", "sev-2", "postmortem-action"],
+    "created_at": "2026-08-01T18:45:00Z",
+    "updated_at": "2026-08-05T16:00:00Z",
+    "resolved_at": "2026-08-05T16:00:00Z",
+    "resolution": "Fixed",
+    "linked_confluence_pages": [
+      {
+        "id": "ENG-PAGE-02",
+        "title": "Incident Response Runbook: Payment Webhook 504 Gateway Timeouts"
+      }
+    ],
+    "linked_issues": [
+      {
+        "relationship": "part of",
+        "key": "PAY-101"
+      }
+    ],
+    "comments": [
+      {
+        "author": "sam.patel@example.com",
+        "created_at": "2026-08-01T19:00:00Z",
+        "body": "SEV-2 incident declared. Pod restart mitigated immediate crash loop."
+      },
+      {
+        "author": "david.kim@example.com",
+        "created_at": "2026-08-05T15:30:00Z",
+        "body": "PR #412 merged and deployed to production. Memory footprint stable at < 120MB per pod."
+      }
+    ]
+  },
+  {
+    "id": "10103",
+    "key": "PAY-103",
+    "project_key": "PAY",
+    "project_name": "Core Payments Team",
+    "issue_type": "Bug",
+    "summary": "Intermittent 504 Gateway Timeout during batch invoice settlement",
+    "description": "Merchants executing batch settlements via `/v1/settlements/batch` experience intermittent HTTP 504 errors when batch size exceeds 500 transactions.\n\n### Expected Behavior:\nBatch requests should either process asynchronously returning a `202 Accepted` with a job tracking ID or complete synchronously within 3 seconds.\n\n### Actual Behavior:\nKong Gateway times out after 10 seconds because `pay-settle` executes sequential database locks on the merchant ledger table instead of batch lock acquisition.",
+    "status": "In Progress",
+    "priority": "High",
+    "reporter": {
+      "name": "marcus.vance@example.com",
+      "display_name": "Marcus Vance",
+      "role": "Principal Security Architect"
+    },
+    "assignee": {
+      "name": "priya.nair@example.com",
+      "display_name": "Priya Nair",
+      "role": "Backend Engineer"
+    },
+    "components": ["Settlement Engine", "Ledger DB"],
+    "labels": ["bug", "performance", "settlement", "database"],
+    "created_at": "2026-08-16T11:15:00Z",
+    "updated_at": "2026-08-21T09:30:00Z",
+    "resolved_at": null,
+    "resolution": null,
+    "linked_confluence_pages": [
+      {
+        "id": "ENG-PAGE-01",
+        "title": "Architecture Overview & Service Topology"
+      },
+      {
+        "id": "ENG-PAGE-02",
+        "title": "Incident Response Runbook: Payment Webhook 504 Gateway Timeouts"
+      }
+    ],
+    "linked_issues": [
+      {
+        "relationship": "relates to",
+        "key": "PAY-101"
+      }
+    ],
+    "comments": [
+      {
+        "author": "priya.nair@example.com",
+        "created_at": "2026-08-21T09:30:00Z",
+        "body": "Refactoring batch settlement endpoint to use Celery worker background tasks and return HTTP 202 immediately. PR in progress."
+      }
+    ]
+  },
+  {
+    "id": "10104",
+    "key": "PAY-104",
+    "project_key": "PAY",
+    "project_name": "Core Payments Team",
+    "issue_type": "Story",
+    "summary": "Implement Tiered Rate Limiting middleware with Redis Token Bucket",
+    "description": "Implement token bucket rate limiting at the API Gateway layer to enforce merchant tier limits (Starter: 20 RPS, Growth: 100 RPS, Enterprise: 500 RPS) according to `ENG-PAGE-04`.\n\n### Acceptance Criteria:\n1. Requests return standard `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset` headers.\n2. Exceeding limits returns HTTP 429 with JSON error code `RATE_LIMIT_EXCEEDED`.\n3. In-memory local token bucket fallback activates seamlessly if Redis cluster is unreachable.\n4. Dynamic override capability via Consul KV without service restarts.",
+    "status": "Done",
+    "priority": "High",
+    "reporter": {
+      "name": "marcus.vance@example.com",
+      "display_name": "Marcus Vance",
+      "role": "Principal Security Architect"
+    },
+    "assignee": {
+      "name": "david.kim@example.com",
+      "display_name": "David Kim",
+      "role": "Senior Backend Engineer"
+    },
+    "components": ["API Gateway", "Security", "Redis"],
+    "labels": ["story", "rate-limiting", "security", "infra"],
+    "created_at": "2026-07-28T09:00:00Z",
+    "updated_at": "2026-08-11T17:00:00Z",
+    "resolved_at": "2026-08-11T17:00:00Z",
+    "resolution": "Done",
+    "linked_confluence_pages": [
+      {
+        "id": "ENG-PAGE-04",
+        "title": "API Rate Limiting & Tiered Throttling Policy"
+      }
+    ],
+    "linked_issues": [],
+    "comments": [
+      {
+        "author": "david.kim@example.com",
+        "created_at": "2026-08-10T16:00:00Z",
+        "body": "Redis Lua script benchmarked at < 0.4ms p99 latency under 20,000 simulated RPS load."
+      },
+      {
+        "author": "marcus.vance@example.com",
+        "created_at": "2026-08-11T16:50:00Z",
+        "body": "Verified compliance with security and rate limiting policy specs in ENG-PAGE-04. Closing story."
+      }
+    ]
+  },
+  {
+    "id": "10105",
+    "key": "PAY-105",
+    "project_key": "PAY",
+    "project_name": "Core Payments Team",
+    "issue_type": "Task",
+    "summary": "Update Developer Onboarding script for Apple Silicon Docker builds",
+    "description": "New engineers using M1/M2/M3 Apple Silicon Macs encountered crashes during `docker compose up` because the `acquirer-mock` image was compiled exclusively for `linux/amd64` architecture.\n\n### Tasks:\n1. Publish multi-arch Docker image (`linux/amd64` and `linux/arm64`) for all local dev mock services.\n2. Update onboarding guide `ENG-PAGE-03` with environment variable settings for Docker Desktop.\n3. Verify test suite passes cleanly on both macOS ARM64 and Linux x86_64.",
+    "status": "In Review",
+    "priority": "Medium",
+    "reporter": {
+      "name": "rachel.chen@example.com",
+      "display_name": "Rachel Chen",
+      "role": "Staff Developer Advocate"
+    },
+    "assignee": {
+      "name": "sam.patel@example.com",
+      "display_name": "Sam Patel",
+      "role": "SRE Team Lead"
+    },
+    "components": ["Developer Tooling", "Docker"],
+    "labels": ["developer-experience", "docker", "onboarding", "apple-silicon"],
+    "created_at": "2026-08-18T13:00:00Z",
+    "updated_at": "2026-08-21T16:00:00Z",
+    "resolved_at": null,
+    "resolution": null,
+    "linked_confluence_pages": [
+      {
+        "id": "ENG-PAGE-03",
+        "title": "Developer Onboarding & Local Environment Setup"
+      }
+    ],
+    "linked_issues": [],
+    "comments": [
+      {
+        "author": "sam.patel@example.com",
+        "created_at": "2026-08-21T15:45:00Z",
+        "body": "Multi-arch GitHub Action workflow configured. Images pushed to internal registry. Rachel reviewing doc updates."
+      }
+    ]
+  },
+  {
+    "id": "10106",
+    "key": "PAY-106",
+    "project_key": "PAY",
+    "project_name": "Core Payments Team",
+    "issue_type": "Incident",
+    "summary": "SEV-2 Postmortem: Database connection pool starvation during Black Friday traffic spike",
+    "description": "On Black Friday peak hour (14:00-14:35 UTC), `pay-settle` experienced database connection pool exhaustion against PostgreSQL primary, causing 1.2% of payment authorizations to fail with HTTP 500 `DB_POOL_TIMEOUT`.\n\n### Root Cause:\nConnection pool max size in FastAPI Gunicorn workers was set to 10 connections per worker with 16 workers, exceeding PostgreSQL's `max_connections=150` setting during auto-scaling.\n\n### Corrective Actions:\n1. Deployed PgBouncer connection pooler in transaction pooling mode between services and RDS.\n2. Increased PostgreSQL RDS instance size from `db.r6g.xlarge` to `db.r6g.2xlarge`.\n3. Updated architecture guide `ENG-PAGE-01` with PgBouncer connection guidelines.",
+    "status": "Closed",
+    "priority": "Highest",
+    "reporter": {
+      "name": "sam.patel@example.com",
+      "display_name": "Sam Patel",
+      "role": "SRE Team Lead"
+    },
+    "assignee": {
+      "name": "alex.morgan@example.com",
+      "display_name": "Alex Morgan",
+      "role": "Staff Architect"
+    },
+    "components": ["Ledger DB", "Settlement Engine", "Infrastructure"],
+    "labels": ["incident", "postmortem", "sev-2", "database", "pgbouncer"],
+    "created_at": "2026-06-25T15:00:00Z",
+    "updated_at": "2026-07-02T18:00:00Z",
+    "resolved_at": "2026-07-02T18:00:00Z",
+    "resolution": "Done",
+    "linked_confluence_pages": [
+      {
+        "id": "ENG-PAGE-01",
+        "title": "Architecture Overview & Service Topology"
+      }
+    ],
+    "linked_issues": [],
+    "comments": [
+      {
+        "author": "alex.morgan@example.com",
+        "created_at": "2026-07-02T17:45:00Z",
+        "body": "PgBouncer deployed to staging and load-tested up to 5,000 concurrent client connections with 0 dropped queries. Production rollout completed."
+      }
+    ]
+  },
+  {
+    "id": "10107",
+    "key": "PAY-107",
+    "project_key": "PAY",
+    "project_name": "Core Payments Team",
+    "issue_type": "Story",
+    "summary": "Implement automated PII anonymization cron for customer data purge older than 90 days",
+    "description": "In accordance with GDPR compliance policy (`ENG-PAGE-05`), implement a daily scheduled worker to anonymize personally identifiable customer information for accounts closed more than 90 days ago.\n\n### Acceptance Criteria:\n1. Scans `customers` table for accounts with `status = 'CLOSED'` and `closed_at < NOW() - INTERVAL '90 DAYS'`.\n2. Overwrites `email`, `phone`, `billing_address` with deterministic salted hashes.\n3. Retains non-PII financial transaction records in `ledger_entries` for 7-year statutory accounting compliance.\n4. Emits audit log event to S3 compliance bucket for each purged customer ID.",
+    "status": "To Do",
+    "priority": "Medium",
+    "reporter": {
+      "name": "elena.rostova@example.com",
+      "display_name": "Elena Rostova",
+      "role": "Lead Compliance Officer"
+    },
+    "assignee": {
+      "name": "priya.nair@example.com",
+      "display_name": "Priya Nair",
+      "role": "Backend Engineer"
+    },
+    "components": ["Compliance", "Ledger DB", "Security"],
+    "labels": ["gdpr", "compliance", "data-retention", "security", "q4-roadmap"],
+    "created_at": "2026-08-14T10:00:00Z",
+    "updated_at": "2026-08-14T10:00:00Z",
+    "resolved_at": null,
+    "resolution": null,
+    "linked_confluence_pages": [
+      {
+        "id": "ENG-PAGE-05",
+        "title": "Data Retention & GDPR/PCI-DSS Compliance Policy"
+      }
+    ],
+    "linked_issues": [],
+    "comments": []
+  },
+  {
+    "id": "10108",
+    "key": "PAY-108",
+    "project_key": "PAY",
+    "project_name": "Core Payments Team",
+    "issue_type": "Bug",
+    "summary": "Sandbox test card returns HTTP 500 when expiry date format is MM/YY instead of MM/YYYY",
+    "description": "When merchants send sandbox payment intent requests with test card expiry formatted as two-digit year (e.g. `12/28`), the payment validator raises an unhandled `ValueError: time data '12/28' does not match format '%m/%Y'` resulting in an unformatted HTTP 500 error.\n\n### Expected Behavior:\nValidator should gracefully parse both `MM/YYYY` and `MM/YY`, or return a clean `400 Bad Request` with message `Invalid expiry date format; expected MM/YYYY or MM/YY`.\n\n### Temporary Workaround:\nInstructed developers in onboarding guide `ENG-PAGE-03` to use four-digit year `MM/YYYY`.",
+    "status": "Open",
+    "priority": "Low",
+    "reporter": {
+      "name": "rachel.chen@example.com",
+      "display_name": "Rachel Chen",
+      "role": "Staff Developer Advocate"
+    },
+    "assignee": {
+      "name": "priya.nair@example.com",
+      "display_name": "Priya Nair",
+      "role": "Backend Engineer"
+    },
+    "components": ["Payment Ingestion", "Validation"],
+    "labels": ["bug", "sandbox", "validation", "good-first-issue"],
+    "created_at": "2026-08-19T08:30:00Z",
+    "updated_at": "2026-08-20T12:00:00Z",
+    "resolved_at": null,
+    "resolution": null,
+    "linked_confluence_pages": [
+      {
+        "id": "ENG-PAGE-03",
+        "title": "Developer Onboarding & Local Environment Setup"
+      }
+    ],
+    "linked_issues": [],
+    "comments": [
+      {
+        "author": "rachel.chen@example.com",
+        "created_at": "2026-08-20T12:00:00Z",
+        "body": "Added a note in ENG-PAGE-03 onboarding doc so new hires don't hit this while setting up."
+      }
+    ]
+  }
+]

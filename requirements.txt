@@ -1,1 +1,2 @@
-# Runtime dependencies will be added in later milestones.
+# Milestone 2 dependencies
+pytest>=8.0.0
