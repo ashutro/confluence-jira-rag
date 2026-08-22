@@ -533,11 +533,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const res = await fetch("/api/health");
       if (res.ok) {
         const h = await res.json();
-        let name = "ChatGPT 4o";
-        if (h.model && !h.model.includes("mock") && !h.model.includes("stealth")) {
-          name = h.model;
-        }
-        activeModelLabel.textContent = name;
+        activeModelLabel.textContent = h.model || "stealth/ox-alpha";
       }
     } catch (e) {}
   }
