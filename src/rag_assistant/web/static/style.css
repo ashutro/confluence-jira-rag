@@ -347,27 +347,18 @@ body.gpt-theme {
   gap: 10px;
 }
 
-.model-picker-pill {
+.model-title-container {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  border-radius: 18px;
-  background: transparent;
-  color: var(--gpt-text-primary);
-  font-size: 0.88rem;
+  padding: 4px 6px;
+}
+
+.model-title-text {
+  font-size: 1.12rem;
   font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.model-picker-pill:hover {
-  background: var(--gpt-bg-input);
-}
-
-.gpt-sparkle {
-  color: var(--gpt-accent-green);
-  font-size: 0.9rem;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+  user-select: none;
 }
 
 .clear-convo-btn {
