@@ -24,6 +24,7 @@ class AskRequest(BaseModel):
     top_k: int = Field(3, ge=1, le=10, description="Number of context chunks to retrieve")
     score_threshold: Optional[float] = Field(None, ge=0.0, le=1.0, description="Confidence threshold")
     history: Optional[List[Dict[str, Any]]] = Field(None, description="Recent conversation message history")
+    enable_guardrails: bool = Field(True, description="Whether strict guardrail refusals are enabled")
 
 
 def create_app(
@@ -154,6 +155,7 @@ def create_app(
                 filter_source=req.source_filter,
                 score_threshold=req.score_threshold,
                 history=req.history,
+                enable_guardrails=req.enable_guardrails,
             )
             return answer.to_dict()
         except Exception as e:

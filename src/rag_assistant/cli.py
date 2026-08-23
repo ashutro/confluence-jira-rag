@@ -424,11 +424,13 @@ def ask_command(args: argparse.Namespace) -> int:
             model_name=model,
             score_threshold=threshold,
         )
+        enable_guardrails = not getattr(args, "no_guardrails", False)
         answer = assistant.ask(
             question=question,
             top_k=top_k,
             filter_source=source_filter,
             score_threshold=threshold,
+            enable_guardrails=enable_guardrails,
         )
 
         if args.format == "json":
@@ -1034,6 +1036,11 @@ def main() -> None:
         help="Output display format.",
     )
     ask_parser.add_argument(
+        "--no-guardrails",
+        action="store_true",
+        help="Disable strict guardrail refusals and allow open model synthesis.",
+    )
+    ask_parser.add_argument(
         "--mock",
         action="store_true",
         help="Use offline mock mode (MockEmbedder + MockLLMProvider).",
@@ -1062,6 +1069,11 @@ def main() -> None:
         type=float,
         default=0.20,
         help="Minimum confidence score threshold.",
+    )
+    chat_parser.add_argument(
+        "--no-guardrails",
+        action="store_true",
+        help="Disable strict guardrail refusals.",
     )
     chat_parser.add_argument(
         "--collection",

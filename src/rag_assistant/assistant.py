@@ -96,6 +96,7 @@ class RAGAssistant:
         filter_tags: Optional[List[str]] = None,
         score_threshold: Optional[float] = None,
         history: Optional[List[Dict[str, str]]] = None,
+        enable_guardrails: bool = True,
     ) -> RAGAnswer:
         """Retrieve grounded context, apply guardrails, and synthesize a verified factual answer."""
         start_time = time.perf_counter()
@@ -109,8 +110,8 @@ class RAGAssistant:
             filter_tags=filter_tags,
         )
 
-        # 2. Guardrail check: Confidence score and domain grounding
-        if not self.guardrails.is_confident(context, score_threshold=effective_threshold):
+        # 2. Guardrail check: Confidence score and domain grounding (if strict guardrails enabled)
+        if enable_guardrails and not self.guardrails.is_confident(context, score_threshold=effective_threshold):
             duration_ms = (time.perf_counter() - start_time) * 1000.0
             fallback_answer = self.guardrails.format_fallback_response(question)
             guardrail_res = GuardrailResult(

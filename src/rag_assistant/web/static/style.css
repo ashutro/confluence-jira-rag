@@ -272,6 +272,122 @@ body.gpt-theme {
   border-radius: 2px;
 }
 
+/* Guardrail Switch & Toggle Pill */
+.gpt-switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.gpt-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #383838;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 20px;
+}
+
+.switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #ffffff;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.gpt-switch input:checked + .switch-slider {
+  background-color: var(--gpt-accent-green);
+}
+
+.gpt-switch input:checked + .switch-slider:before {
+  transform: translateX(16px);
+}
+
+.guardrail-status-subtext {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--gpt-text-muted);
+  margin-top: 4px;
+}
+
+.guardrail-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.guardrail-dot.on {
+  background-color: var(--gpt-accent-green);
+  box-shadow: 0 0 6px rgba(16, 163, 127, 0.6);
+}
+
+.guardrail-dot.off {
+  background-color: #6b7280;
+  box-shadow: none;
+}
+
+/* Header Guardrail Pill */
+.guardrail-toggle-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 16px;
+  background: rgba(16, 163, 127, 0.12);
+  border: 1px solid rgba(16, 163, 127, 0.3);
+  color: var(--gpt-accent-green);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.guardrail-toggle-pill:hover {
+  background: rgba(16, 163, 127, 0.22);
+  transform: translateY(-1px);
+}
+
+.guardrail-toggle-pill.off {
+  background: rgba(107, 114, 128, 0.15);
+  border-color: rgba(107, 114, 128, 0.3);
+  color: #9ca3af;
+}
+
+.guardrail-toggle-pill.off:hover {
+  background: rgba(107, 114, 128, 0.25);
+}
+
+.guardrail-pill-icon {
+  font-size: 0.85rem;
+}
+
+.grounded-badge.relaxed {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
 /* Sidebar Profile Footer */
 .sidebar-footer {
   margin-top: auto;

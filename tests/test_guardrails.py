@@ -166,3 +166,12 @@ def test_high_threshold_triggers_fallback(assistant: RAGAssistant):
     assert ans.provider == "guardrail_shortcircuit"
     assert "do not have enough information" in ans.answer.lower()
     assert len(ans.sources) == 0
+
+
+def test_guardrail_toggle_disabled(assistant: RAGAssistant):
+    # When strict guardrails are disabled, query should not be short-circuited
+    q = "What are the rate limit tiers?"
+    ans = assistant.ask(question=q, score_threshold=0.99, enable_guardrails=False)
+
+    assert ans.provider != "guardrail_shortcircuit"
+    assert len(ans.answer) > 20

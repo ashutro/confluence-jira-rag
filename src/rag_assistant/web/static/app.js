@@ -21,6 +21,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const statDocs = document.getElementById("stat-docs");
   const thresholdSlider = document.getElementById("threshold-slider");
   const thresholdVal = document.getElementById("threshold-val");
+  const guardrailToggle = document.getElementById("guardrail-toggle");
+  const guardrailStatusDot = document.getElementById("guardrail-status-dot");
+  const guardrailStatusLabel = document.getElementById("guardrail-status-label");
+  const headerGuardrailToggle = document.getElementById("header-guardrail-toggle");
+  const headerGuardrailText = document.getElementById("header-guardrail-text");
   const scopeBtns = document.querySelectorAll(".scope-btn");
   const dockScopeBadge = document.getElementById("dock-scope-badge");
   const scopeText = document.getElementById("scope-text");
@@ -30,6 +35,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // State
   let activeSourceFilter = "";
   let scoreThreshold = 0.05;
+  let enableGuardrails = true;
   let isGenerating = false;
   let sessions = JSON.parse(localStorage.getItem("gpt_rag_sessions") || "[]");
   let currentSessionId = null;
@@ -39,6 +45,42 @@ document.addEventListener("DOMContentLoaded", () => {
   fetchHealth();
   fetchStats();
   updateSendBtnState();
+
+  // Guardrail Mode Synchronization
+  function setGuardrailState(enabled, silent = false) {
+    enableGuardrails = enabled;
+    if (guardrailToggle) guardrailToggle.checked = enabled;
+
+    if (enabled) {
+      if (guardrailStatusDot) guardrailStatusDot.className = "guardrail-dot on";
+      if (guardrailStatusLabel) guardrailStatusLabel.textContent = "Refusal Active (Strict)";
+      if (headerGuardrailToggle) {
+        headerGuardrailToggle.className = "guardrail-toggle-pill on";
+        if (headerGuardrailText) headerGuardrailText.textContent = "Guardrails: ON";
+      }
+      if (!silent) showToast("🛡️ Strict Guardrails: ON (Refusals Active)");
+    } else {
+      if (guardrailStatusDot) guardrailStatusDot.className = "guardrail-dot off";
+      if (guardrailStatusLabel) guardrailStatusLabel.textContent = "Refusal Off (Open Mode)";
+      if (headerGuardrailToggle) {
+        headerGuardrailToggle.className = "guardrail-toggle-pill off";
+        if (headerGuardrailText) headerGuardrailText.textContent = "Guardrails: OFF";
+      }
+      if (!silent) showToast("🔓 Strict Guardrails: OFF (Open / Relaxed Mode)");
+    }
+  }
+
+  if (guardrailToggle) {
+    guardrailToggle.addEventListener("change", (e) => {
+      setGuardrailState(e.target.checked);
+    });
+  }
+
+  if (headerGuardrailToggle) {
+    headerGuardrailToggle.addEventListener("click", () => {
+      setGuardrailState(!enableGuardrails);
+    });
+  }
 
   const sidebarHideBtn = document.getElementById("sidebar-hide-btn");
   const sidebarShowBtn = document.getElementById("sidebar-show-btn");
@@ -192,6 +234,7 @@ document.addEventListener("DOMContentLoaded", () => {
           top_k: 3,
           score_threshold: scoreThreshold,
           history: historyPayload,
+          enable_guardrails: enableGuardrails,
         }),
       });
 
@@ -282,14 +325,26 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="thought-content" style="display: none;">
             <p>• Similarity score: <code>${(data.guardrail?.confidence_score || 0.85).toFixed(4)}</code> (Threshold: ${scoreThreshold})</p>
             <p>• Grounded in: ${citedList}</p>
+            <p>• Strict Guardrails: <code>${enableGuardrails ? "Active" : "Disabled"}</code></p>
           </div>
         </div>
       `;
     }
 
     // 2. Grounding status pill
-    const badgeClass = isGrounded ? "verified" : "refusal";
-    const badgeText = isGrounded ? `✓ Grounded in Confluence & Jira (${confidence}% match)` : `⚠ Guardrail Refusal`;
+    let badgeClass = "verified";
+    let badgeText = `✓ Grounded in Confluence & Jira (${confidence}% match)`;
+
+    if (data.provider === "guardrail_shortcircuit") {
+      badgeClass = "refusal";
+      badgeText = "⚠ Guardrail Refusal";
+    } else if (!enableGuardrails) {
+      badgeClass = "relaxed";
+      badgeText = "⚡ Open Mode (Guardrails Relaxed)";
+    } else if (!isGrounded) {
+      badgeClass = "refusal";
+      badgeText = "⚠ Low Grounding";
+    }
 
     // 3. Formatted Markdown
     const markdownHtml = renderGptMarkdown(data.answer);
