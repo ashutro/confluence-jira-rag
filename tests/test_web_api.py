@@ -86,6 +86,18 @@ def test_api_ask_empty_question(client: TestClient):
     assert resp.status_code == 400
 
 
+def test_api_ask_with_guardrails_disabled(client: TestClient):
+    payload = {
+        "question": "What is the secret flight schedule to the Moon?",
+        "score_threshold": 0.99,
+        "enable_guardrails": False,
+    }
+    resp = client.post("/api/ask", json=payload)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["provider"] != "guardrail_shortcircuit"
+
+
 def test_serve_html_index(client: TestClient):
     resp = client.get("/")
     assert resp.status_code == 200

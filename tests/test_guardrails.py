@@ -166,3 +166,12 @@ def test_high_threshold_triggers_fallback(assistant: RAGAssistant):
     assert ans.provider == "guardrail_shortcircuit"
     assert "do not have enough information" in ans.answer.lower()
     assert len(ans.sources) == 0
+
+
+def test_guardrail_toggle_disabled(assistant: RAGAssistant):
+    q = "What is the secret recipe for chocolate cookies?"
+    # When enable_guardrails is False, even with high threshold or out of domain, LLM synthesis proceeds
+    ans = assistant.ask(question=q, score_threshold=0.99, enable_guardrails=False)
+
+    assert ans.provider != "guardrail_shortcircuit"
+    assert ans.provider == "mock"

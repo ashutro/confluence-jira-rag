@@ -256,6 +256,112 @@ body.gpt-theme {
   font-weight: 600;
 }
 
+/* Guardrail Switch Toggle */
+.gpt-switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 20px;
+}
+
+.gpt-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #333333;
+  transition: 0.25s ease;
+  border-radius: 20px;
+  border: 1px solid var(--gpt-border-medium);
+}
+
+.switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #9ca3af;
+  transition: 0.25s ease;
+  border-radius: 50%;
+}
+
+.gpt-switch input:checked + .switch-slider {
+  background-color: #10a37f;
+  border-color: #10a37f;
+}
+
+.gpt-switch input:checked + .switch-slider:before {
+  transform: translateX(18px);
+  background-color: #ffffff;
+}
+
+.guardrail-status-subtext {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--gpt-text-muted);
+  margin-top: 6px;
+}
+
+.guardrail-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.guardrail-dot.on {
+  background-color: #10a37f;
+  box-shadow: 0 0 6px rgba(16, 163, 127, 0.6);
+}
+
+.guardrail-dot.off {
+  background-color: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+}
+
+/* Header Guardrail Pill */
+.guardrail-toggle-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.guardrail-toggle-pill.on {
+  background: rgba(16, 163, 127, 0.12);
+  color: #10a37f;
+  border-color: rgba(16, 163, 127, 0.3);
+}
+
+.guardrail-toggle-pill.off {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.guardrail-toggle-pill:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.15);
+}
+
 /* Threshold Slider */
 .threshold-tag {
   font-family: var(--font-mono);
@@ -553,6 +659,12 @@ body.gpt-theme {
   background: rgba(245, 158, 11, 0.15);
   color: var(--gpt-accent-amber);
   border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.grounded-badge.relaxed {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 /* Assistant Rendered Markdown */
