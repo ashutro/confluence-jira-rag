@@ -174,6 +174,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const startTime = performance.now();
 
     try {
+      // Prepare history payload for multi-turn context
+      const curSession = sessions.find(s => s.id === currentSessionId);
+      const historyPayload = curSession && curSession.messages.length > 0
+        ? curSession.messages.slice(-6).map(m => ({
+            role: m.role,
+            content: m.text || (m.data ? m.data.answer : "")
+          }))
+        : [];
+
       const resp = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -182,6 +191,7 @@ document.addEventListener("DOMContentLoaded", () => {
           source_filter: activeSourceFilter || null,
           top_k: 3,
           score_threshold: scoreThreshold,
+          history: historyPayload,
         }),
       });
 

@@ -95,6 +95,7 @@ class RAGAssistant:
         filter_source: Optional[str] = None,
         filter_tags: Optional[List[str]] = None,
         score_threshold: Optional[float] = None,
+        history: Optional[List[Dict[str, str]]] = None,
     ) -> RAGAnswer:
         """Retrieve grounded context, apply guardrails, and synthesize a verified factual answer."""
         start_time = time.perf_counter()
@@ -108,7 +109,7 @@ class RAGAssistant:
             filter_tags=filter_tags,
         )
 
-        # 2. Guardrail check: Confidence score threshold
+        # 2. Guardrail check: Confidence score and domain grounding
         if not self.guardrails.is_confident(context, score_threshold=effective_threshold):
             duration_ms = (time.perf_counter() - start_time) * 1000.0
             fallback_answer = self.guardrails.format_fallback_response(question)
@@ -137,11 +138,21 @@ class RAGAssistant:
             formatted_context=context.formatted_prompt_context,
         )
 
-        # 4. Synthesize answer via LLM
-        raw_answer = self.llm_provider.generate_answer(
-            system_prompt=SYSTEM_PROMPT,
-            user_prompt=user_prompt,
-        )
+        # 4. Synthesize answer via LLM (multi-turn if history provided)
+        if history and hasattr(self.llm_provider, "generate_with_messages"):
+            messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+            for h in history[-6:]:
+                role = h.get("role", "user")
+                content = h.get("content") or h.get("text") or ""
+                if content:
+                    messages.append({"role": role, "content": content})
+            messages.append({"role": "user", "content": user_prompt})
+            raw_answer = self.llm_provider.generate_with_messages(messages)
+        else:
+            raw_answer = self.llm_provider.generate_answer(
+                system_prompt=SYSTEM_PROMPT,
+                user_prompt=user_prompt,
+            )
 
         # 5. Citation verification and source link enrichment
         guardrail_audit = self.guardrails.verify_citations(raw_answer, context)

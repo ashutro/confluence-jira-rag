@@ -60,13 +60,15 @@ class GuardrailService:
         if max_score < threshold:
             return False
 
-        # Domain concept whitelist for meta-questions (e.g. "how many jira details you have", "what docs exist")
+        # Domain concept whitelist for meta-questions and conversational follow-ups
         DOMAIN_TERMS = {
             "jira", "confluence", "ticket", "tickets", "issue", "issues",
             "page", "pages", "doc", "docs", "document", "documents",
             "detail", "details", "runbook", "runbooks", "summary", "summarize",
+            "summarized", "summerize", "summerized", "above", "explain", "explanation",
             "overview", "architecture", "payment", "payments", "service", "services",
-            "kb", "database", "platform", "system", "infrastructure",
+            "kb", "database", "platform", "system", "infrastructure", "more", "list",
+            "info", "information",
         }
 
         words = re.findall(r"\b[a-zA-Z0-9_-]{3,}\b", context.query.lower())

@@ -69,9 +69,16 @@ class MockLLMProvider(BaseLLMProvider):
 
         # Lexical sanity check on question vs context sources
         words = re.findall(r"\b[a-zA-Z0-9_-]{3,}\b", question.lower())
+        CONVERSATIONAL_TERMS = {
+            "summarize", "summerize", "summerized", "summarized", "summary",
+            "detail", "details", "above", "explain", "help", "overview", "list",
+            "more", "what", "jira", "confluence", "ticket", "tickets", "info",
+        }
+        is_conversational = any(w in CONVERSATIONAL_TERMS for w in words)
+
         content_words = [w for w in words if w not in COMMON_STOPWORDS and len(w) >= 4]
         sources_text = " ".join(s[6] + " " + s[3] + " " + s[2] for s in sources).lower()
-        if content_words and not any(cw in sources_text for cw in content_words):
+        if not is_conversational and content_words and not any(cw in sources_text for cw in content_words):
             return f"Based on the current Confluence documentation and Jira records, I cannot find information regarding '{question}'."
 
         lines = []
