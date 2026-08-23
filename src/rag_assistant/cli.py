@@ -1206,6 +1206,11 @@ def main() -> None:
         help="Local Qdrant database directory.",
     )
     serve_parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="Enable auto-reload on code or static template changes.",
+    )
+    serve_parser.add_argument(
         "--mock",
         action="store_true",
         help="Run web server in offline mock mode.",
