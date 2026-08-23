@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body class="gpt-theme">
@@ -62,6 +63,26 @@
         </div>
       </div>
 
+      <!-- Guardrail Enforcement Toggle -->
+      <div class="sidebar-section">
+        <div class="section-heading flex-between">
+          <span style="display:flex; align-items:center; gap:6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <span>Strict Guardrails</span>
+          </span>
+          <label class="gpt-switch" title="Toggle Guardrail Refusal mode">
+            <input type="checkbox" id="guardrail-toggle" checked>
+            <span class="switch-slider round"></span>
+          </label>
+        </div>
+        <div class="guardrail-status-subtext">
+          <span class="guardrail-dot on" id="guardrail-status-dot"></span>
+          <span id="guardrail-status-label">Refusal Active (Strict)</span>
+        </div>
+      </div>
+
       <!-- Threshold Slider -->
       <div class="sidebar-section">
         <div class="section-heading flex-between">
@@ -102,6 +123,12 @@
         </div>
 
         <div class="header-right">
+          <!-- Quick Guardrail Toggle in Top Header -->
+          <button class="guardrail-toggle-pill on" id="header-guardrail-toggle" title="Click to toggle Strict Guardrails on/off">
+            <span class="guardrail-pill-icon">🛡️</span>
+            <span id="header-guardrail-text">Guardrails: ON</span>
+          </button>
+
           <button class="clear-convo-btn" id="clear-thread-btn" title="Clear conversation">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>

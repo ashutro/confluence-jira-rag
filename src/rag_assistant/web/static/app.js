@@ -26,10 +26,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const scopeText = document.getElementById("scope-text");
   const capsuleBtns = document.querySelectorAll(".capsule-btn");
   const toastContainer = document.getElementById("toast-container");
+  const guardrailToggle = document.getElementById("guardrail-toggle");
+  const guardrailStatusDot = document.getElementById("guardrail-status-dot");
+  const guardrailStatusLabel = document.getElementById("guardrail-status-label");
+  const headerGuardrailToggle = document.getElementById("header-guardrail-toggle");
+  const headerGuardrailText = document.getElementById("header-guardrail-text");
 
   // State
   let activeSourceFilter = "";
   let scoreThreshold = 0.20;
+  let enableGuardrails = true;
   let isGenerating = false;
   let sessions = JSON.parse(localStorage.getItem("gpt_rag_sessions") || "[]");
   let currentSessionId = null;
@@ -42,6 +48,39 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const sidebarHideBtn = document.getElementById("sidebar-hide-btn");
   const sidebarShowBtn = document.getElementById("sidebar-show-btn");
+
+  // Guardrail Toggle Sync Function
+  function setGuardrailsMode(enabled, notify = true) {
+    enableGuardrails = enabled;
+    if (guardrailToggle) guardrailToggle.checked = enabled;
+    if (guardrailStatusDot) {
+      guardrailStatusDot.className = enabled ? "guardrail-dot on" : "guardrail-dot off";
+    }
+    if (guardrailStatusLabel) {
+      guardrailStatusLabel.textContent = enabled ? "Refusal Active (Strict)" : "Guardrails Disabled (Open)";
+    }
+    if (headerGuardrailToggle) {
+      headerGuardrailToggle.className = enabled ? "guardrail-toggle-pill on" : "guardrail-toggle-pill off";
+    }
+    if (headerGuardrailText) {
+      headerGuardrailText.textContent = enabled ? "Guardrails: ON" : "Guardrails: OFF";
+    }
+    if (notify) {
+      showToast(enabled ? "🛡️ Strict Guardrails: ON" : "⚡ Open Mode: ON (Refusals Bypassed)");
+    }
+  }
+
+  if (guardrailToggle) {
+    guardrailToggle.addEventListener("change", (e) => {
+      setGuardrailsMode(e.target.checked);
+    });
+  }
+
+  if (headerGuardrailToggle) {
+    headerGuardrailToggle.addEventListener("click", () => {
+      setGuardrailsMode(!enableGuardrails);
+    });
+  }
 
   // 1. Sidebar Toggles (ChatGPT style)
   if (sidebarHideBtn) {
@@ -182,6 +221,7 @@ document.addEventListener("DOMContentLoaded", () => {
           source_filter: activeSourceFilter || null,
           top_k: 3,
           score_threshold: scoreThreshold,
+          enable_guardrails: enableGuardrails,
         }),
       });
 
@@ -252,6 +292,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const turn = document.createElement("div");
     turn.className = "message-turn assistant";
 
+    const isShortcircuit = data.provider === "guardrail_shortcircuit";
     const isGrounded = data.guardrail && data.guardrail.is_grounded;
     const confidence = data.guardrail ? Math.round((data.guardrail.confidence_score || 0) * 100) : 85;
     const chunksCount = data.context && data.context.chunks ? data.context.chunks.length : (data.sources ? data.sources.length : 3);
@@ -278,8 +319,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // 2. Grounding status pill
-    const badgeClass = isGrounded ? "verified" : "refusal";
-    const badgeText = isGrounded ? `✓ Grounded in Confluence & Jira (${confidence}% match)` : `⚠ Guardrail Refusal`;
+    let badgeClass = "verified";
+    let badgeText = `✓ Grounded in Confluence & Jira (${confidence}% match)`;
+    if (isShortcircuit) {
+      badgeClass = "refusal";
+      badgeText = `⚠ Guardrail Refusal`;
+    } else if (!enableGuardrails) {
+      badgeClass = "relaxed";
+      badgeText = `⚡ Open Mode (Guardrails Relaxed)`;
+    } else if (!isGrounded) {
+      badgeClass = "refusal";
+      badgeText = `⚠ Guardrail Refusal`;
+    }
 
     // 3. Formatted Markdown
     const markdownHtml = renderGptMarkdown(data.answer);

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -423,11 +424,13 @@ def ask_command(args: argparse.Namespace) -> int:
             model_name=model,
             score_threshold=threshold,
         )
+        enable_guardrails = not getattr(args, "no_guardrails", False)
         answer = assistant.ask(
             question=question,
             top_k=top_k,
             filter_source=source_filter,
             score_threshold=threshold,
+            enable_guardrails=enable_guardrails,
         )
 
         if args.format == "json":
@@ -454,6 +457,7 @@ def chat_command(args: argparse.Namespace) -> int:
     model = args.model
     use_mock = args.mock
     threshold = args.score_threshold
+    enable_guardrails = not getattr(args, "no_guardrails", False)
 
     print("=" * 60)
     print("🤖 Confluence + Jira RAG Interactive Assistant")
@@ -486,7 +490,12 @@ def chat_command(args: argparse.Namespace) -> int:
                 break
 
             print("\nSearching knowledge base & applying guardrails...")
-            answer = assistant.ask(question=question, top_k=3, score_threshold=threshold)
+            answer = assistant.ask(
+                question=question,
+                top_k=3,
+                score_threshold=threshold,
+                enable_guardrails=enable_guardrails,
+            )
             print("\n" + "=" * 60)
             print(answer.answer)
             print("=" * 60)
@@ -1033,6 +1042,11 @@ def main() -> None:
         help="Output display format.",
     )
     ask_parser.add_argument(
+        "--no-guardrails",
+        action="store_true",
+        help="Disable strict guardrail refusals and allow open model synthesis.",
+    )
+    ask_parser.add_argument(
         "--mock",
         action="store_true",
         help="Use offline mock mode (MockEmbedder + MockLLMProvider).",
@@ -1061,6 +1075,11 @@ def main() -> None:
         type=float,
         default=0.20,
         help="Minimum confidence score threshold.",
+    )
+    chat_parser.add_argument(
+        "--no-guardrails",
+        action="store_true",
+        help="Disable strict guardrail refusals.",
     )
     chat_parser.add_argument(
         "--collection",
@@ -1191,6 +1210,11 @@ def main() -> None:
         type=str,
         default="data/qdrant_db",
         help="Local Qdrant database directory.",
+    )
+    serve_parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="Enable auto-reload on code or static template changes.",
     )
     serve_parser.add_argument(
         "--mock",

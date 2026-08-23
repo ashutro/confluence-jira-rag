@@ -23,6 +23,7 @@ class AskRequest(BaseModel):
     source_filter: Optional[str] = Field(None, description="Optional filter: 'confluence' or 'jira'")
     top_k: int = Field(3, ge=1, le=10, description="Number of context chunks to retrieve")
     score_threshold: Optional[float] = Field(None, ge=0.0, le=1.0, description="Confidence threshold")
+    enable_guardrails: bool = Field(True, description="Whether strict guardrail refusals are enabled")
 
 
 def create_app(
@@ -152,6 +153,7 @@ def create_app(
                 top_k=req.top_k,
                 filter_source=req.source_filter,
                 score_threshold=req.score_threshold,
+                enable_guardrails=req.enable_guardrails,
             )
             return answer.to_dict()
         except Exception as e:
