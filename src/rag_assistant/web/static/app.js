@@ -29,7 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // State
   let activeSourceFilter = "";
-  let scoreThreshold = 0.20;
+  let scoreThreshold = 0.05;
   let isGenerating = false;
   let sessions = JSON.parse(localStorage.getItem("gpt_rag_sessions") || "[]");
   let currentSessionId = null;

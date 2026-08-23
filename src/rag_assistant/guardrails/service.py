@@ -51,7 +51,7 @@ class GuardrailService:
         context: RetrievalContext,
         score_threshold: Optional[float] = None,
     ) -> bool:
-        """Check if retrieved context meets the minimum confidence threshold and topic grounding."""
+        """Check if retrieved context meets the minimum confidence threshold and domain grounding."""
         threshold = score_threshold if score_threshold is not None else self.default_threshold
         if not context.chunks:
             return False
@@ -60,15 +60,24 @@ class GuardrailService:
         if max_score < threshold:
             return False
 
-        # Lexical sanity check on meaningful query content words
-        words = re.findall(r"\b[a-zA-Z0-9_-]{3,}\b", context.query.lower())
-        content_words = [w for w in words if w not in COMMON_STOPWORDS and len(w) >= 4]
+        # Domain concept whitelist for meta-questions (e.g. "how many jira details you have", "what docs exist")
+        DOMAIN_TERMS = {
+            "jira", "confluence", "ticket", "tickets", "issue", "issues",
+            "page", "pages", "doc", "docs", "document", "documents",
+            "detail", "details", "runbook", "runbooks", "summary", "summarize",
+            "overview", "architecture", "payment", "payments", "service", "services",
+            "kb", "database", "platform", "system", "infrastructure",
+        }
 
+        words = re.findall(r"\b[a-zA-Z0-9_-]{3,}\b", context.query.lower())
+        if any(w in DOMAIN_TERMS for w in words):
+            return True
+
+        content_words = [w for w in words if w not in COMMON_STOPWORDS and len(w) >= 4]
         if content_words:
             all_context_text = " ".join(
-                [c.title + " " + c.raw_text + " " + c.source_id for c in context.chunks]
+                [c.source_type + " " + c.title + " " + c.raw_text + " " + c.source_id for c in context.chunks]
             ).lower()
-            # If none of the content words match anywhere in retrieved chunks, it's out of domain
             has_lexical_match = any(cw in all_context_text for cw in content_words)
             if not has_lexical_match:
                 return False
